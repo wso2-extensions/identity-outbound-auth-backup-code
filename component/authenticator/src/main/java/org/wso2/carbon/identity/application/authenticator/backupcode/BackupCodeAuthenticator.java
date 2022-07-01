@@ -17,7 +17,6 @@
  */
 package org.wso2.carbon.identity.application.authenticator.backupcode;
 
-import org.wso2.carbon.core.util.CryptoException;
 import org.wso2.carbon.identity.application.authenticator.backupcode.exception.BackupCodeException;
 import org.wso2.carbon.identity.application.authenticator.backupcode.internal.BackupCodeDataHolder;
 import org.wso2.carbon.identity.application.authenticator.backupcode.util.BackupCodeUtil;
@@ -52,10 +51,8 @@ import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -574,19 +571,8 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
             return false;
         }
         List<String> backupCodeList;
-        if (StringUtils.isEmpty(hashedBackupCodes)) {
-            backupCodeList = Collections.emptyList();
-        } else {
-            backupCodeList = new ArrayList<>(Arrays.asList(hashedBackupCodes.split(",")));
-        }
-
-        if (backupCodeList.isEmpty()) {
-            if (log.isDebugEnabled()) {
-                log.debug("No backup codes found for user: " + userName);
-            }
-            return false;
-        }
-        if (!backupCodeList.contains(BackupCodeUtil.generateHashString(token))) {
+        backupCodeList = new ArrayList<>(Arrays.asList(hashedBackupCodes.split(",")));
+        if (!backupCodeList.contains(BackupCodeUtil.generateHashBackupCode(token))) {
             if (log.isDebugEnabled()) {
                 log.debug(String.format("Given code: %s does not match with any saved backup codes codes for user: %s",
                         token, userName));
@@ -612,7 +598,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
     private void removeUsedBackupCode(String userToken, String username, List<String> backupCodes)
             throws BackupCodeException {
 
-        backupCodes.remove(BackupCodeUtil.generateHashString(userToken));
+        backupCodes.remove(BackupCodeUtil.generateHashBackupCode(userToken));
         String unusedBackupCodes = String.join(",", backupCodes);
         String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
         try {

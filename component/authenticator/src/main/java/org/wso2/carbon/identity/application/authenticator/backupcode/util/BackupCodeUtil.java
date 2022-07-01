@@ -449,13 +449,13 @@ public class BackupCodeUtil {
     }
 
     /**
-     * Generate the hash value of the given string.
+     * Generate the hash value of the given backupCode.
      *
      * @param backupCode String value that needs to hash.
      * @return Hash value of the backupCode.
      * @throws BackupCodeException If the algorithms is invalid.
      */
-    public static String generateHashString(String backupCode) throws BackupCodeException {
+    public static String generateHashBackupCode(String backupCode) throws BackupCodeException {
 
         try {
             MessageDigest messageDigest = MessageDigest.getInstance(TOKEN_HASH_METHOD);
@@ -469,7 +469,6 @@ public class BackupCodeUtil {
             throw new BackupCodeException(ERROR_CODE_ERROR_HASH_BACKUP_CODE.getCode(),
                     ERROR_CODE_ERROR_HASH_BACKUP_CODE.getMessage(), e);
         }
-
     }
 }
 
