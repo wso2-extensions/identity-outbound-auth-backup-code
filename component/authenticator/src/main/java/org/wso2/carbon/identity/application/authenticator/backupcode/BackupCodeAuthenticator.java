@@ -574,18 +574,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
             return false;
         }
         List<String> backupCodeList;
-        if (StringUtils.isEmpty(hashedBackupCodes)) {
-            backupCodeList = Collections.emptyList();
-        } else {
-            backupCodeList = new ArrayList<>(Arrays.asList(hashedBackupCodes.split(",")));
-        }
-
-        if (backupCodeList.isEmpty()) {
-            if (log.isDebugEnabled()) {
-                log.debug("No backup codes found for user: " + userName);
-            }
-            return false;
-        }
+        backupCodeList = new ArrayList<>(Arrays.asList(hashedBackupCodes.split(",")));
         if (!backupCodeList.contains(BackupCodeUtil.generateHashString(token))) {
             if (log.isDebugEnabled()) {
                 log.debug(String.format("Given code: %s does not match with any saved backup codes codes for user: %s",

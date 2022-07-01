@@ -469,7 +469,6 @@ public class BackupCodeUtil {
             throw new BackupCodeException(ERROR_CODE_ERROR_HASH_BACKUP_CODE.getCode(),
                     ERROR_CODE_ERROR_HASH_BACKUP_CODE.getMessage(), e);
         }
-
     }
 }
 
