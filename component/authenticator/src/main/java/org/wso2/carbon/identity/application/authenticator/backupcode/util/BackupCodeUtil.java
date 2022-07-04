@@ -459,10 +459,12 @@ public class BackupCodeUtil {
 
         try {
             MessageDigest messageDigest = MessageDigest.getInstance(TOKEN_HASH_METHOD);
-            byte[] in = messageDigest.digest(backupCode.getBytes(StandardCharsets.UTF_8));
             final StringBuilder builder = new StringBuilder();
-            for (byte b : in) {
-                builder.append(String.format("%02x", b));
+            if (backupCode != null){
+                byte[] in = messageDigest.digest(backupCode.getBytes(StandardCharsets.UTF_8));
+                for (byte b : in) {
+                    builder.append(String.format("%02x", b));
+                }
             }
             return builder.toString();
         } catch (NoSuchAlgorithmException e) {

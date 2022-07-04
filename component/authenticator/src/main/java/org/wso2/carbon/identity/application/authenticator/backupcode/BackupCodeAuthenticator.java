@@ -17,7 +17,6 @@
  */
 package org.wso2.carbon.identity.application.authenticator.backupcode;
 
-import org.wso2.carbon.core.util.CryptoException;
 import org.wso2.carbon.identity.application.authenticator.backupcode.exception.BackupCodeException;
 import org.wso2.carbon.identity.application.authenticator.backupcode.internal.BackupCodeDataHolder;
 import org.wso2.carbon.identity.application.authenticator.backupcode.util.BackupCodeUtil;
@@ -52,10 +51,8 @@ import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
