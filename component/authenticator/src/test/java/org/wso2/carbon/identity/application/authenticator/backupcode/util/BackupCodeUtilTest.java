@@ -33,54 +33,6 @@ public class BackupCodeUtilTest extends TestCase {
     }
 
     @Test
-    public void testGetAuthenticatedUser() {
-    }
-
-    @Test
-    public void testGetRealmService() {
-    }
-
-    @Test
-    public void testGetUserRealm() {
-    }
-
-    @Test
-    public void testGetMultiOptionURIQueryParam() {
-    }
-
-    @Test
-    public void testGetBackupCodeLoginPage() {
-    }
-
-    @Test
-    public void testGetLoginPageFromXMLFile() {
-    }
-
-    @Test
-    public void testGetBackupCodeErrorPage() {
-    }
-
-    @Test
-    public void testGetErrorPageFromXMLFile() {
-    }
-
-    @Test
-    public void testIsLocalUser() {
-    }
-
-    @Test
-    public void testIsAccountLocked() {
-    }
-
-    @Test
-    public void testEncrypt() {
-    }
-
-    @Test
-    public void testDecrypt() {
-    }
-
-    @Test
     public void testGetBackupCodeAuthenticatorConfig() throws BackupCodeException {
 
         BackupCodeUtil backupCodeUtil = mock(BackupCodeUtil.class);

@@ -88,10 +88,4 @@ public class BackupCodeAPIHandlerTest extends PowerMockTestCase {
                 {testClaims4, 2}
         };
     }
-
-    public void testGenerateBackupCodes() {
-    }
-
-    public void testDeleteBackupCodes() {
-    }
 }
