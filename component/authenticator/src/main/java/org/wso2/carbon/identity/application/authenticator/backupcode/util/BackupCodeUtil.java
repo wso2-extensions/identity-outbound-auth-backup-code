@@ -25,8 +25,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.owasp.encoder.Encode;
-import org.wso2.carbon.core.util.CryptoException;
-import org.wso2.carbon.core.util.CryptoUtil;
 import org.wso2.carbon.extension.identity.helper.IdentityHelperConstants;
 import org.wso2.carbon.identity.application.authentication.framework.config.ConfigurationFacade;
 import org.wso2.carbon.identity.application.authentication.framework.config.builder.FileBasedConfigurationBuilder;
@@ -337,30 +335,6 @@ public class BackupCodeUtil {
             throw new AuthenticationFailedException(
                     String.format("Error while validating account lock status of user: %s.", userName), e);
         }
-    }
-
-    /**
-     * Encrypt the given plain text.
-     *
-     * @param plainText The plaintext value to be encrypted and base64 encoded.
-     * @return Base64 encoded string.
-     * @throws CryptoException On error during encryption.
-     */
-    public static String encrypt(String plainText) throws CryptoException {
-
-        return CryptoUtil.getDefaultCryptoUtil().encryptAndBase64Encode(plainText.getBytes(StandardCharsets.UTF_8));
-    }
-
-    /**
-     * Decrypt the given cipher text.
-     *
-     * @param cipherText The string which needs to be decrypted.
-     * @return Base64 decoded string.
-     * @throws CryptoException On an error during decryption.
-     */
-    public static String decrypt(String cipherText) throws CryptoException {
-
-        return new String(CryptoUtil.getDefaultCryptoUtil().base64DecodeAndDecrypt(cipherText), StandardCharsets.UTF_8);
     }
 
     /**
