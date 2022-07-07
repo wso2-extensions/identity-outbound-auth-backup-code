@@ -18,8 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.powermock.api.mockito.PowerMockito.*;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.Claims.BACKUP_CODES_CLAIM;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.Claims.BACKUP_CODES_ENABLED_CLAIM;
@@ -52,6 +51,8 @@ public class BackupCodeAPIHandlerTest extends PowerMockTestCase {
                 thenReturn(userClaimValues);
         assertEquals(remainingBackupCodesCount, backupCodeAPIHandler.getRemainingBackupCodesCount(username));
 
+        when(BackupCodeUtil.getUserRealm("test2")).thenReturn(null);
+        assertEquals(0, backupCodeAPIHandler.getRemainingBackupCodesCount("test2"));
     }
 
     @DataProvider(name = "backupCodesCountData")
@@ -89,10 +90,12 @@ public class BackupCodeAPIHandlerTest extends PowerMockTestCase {
         BackupCodeAPIHandler backupCodeAPIHandler = new BackupCodeAPIHandler();
         when(BackupCodeUtil.getUserRealm(username)).thenReturn(userRealm);
         when(MultitenantUtils.getTenantDomain(username)).thenReturn(tenantDomain);
-
         when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
         when(BackupCodeUtil.generateBackupCodes(tenantDomain)).thenReturn(backupCodes);
         assertEquals(backupCodes, backupCodeAPIHandler.generateBackupCodes(username));
+
+        when(BackupCodeUtil.getUserRealm("test2")).thenReturn(null);
+        assertEquals(new ArrayList<>(), backupCodeAPIHandler.generateBackupCodes("test2"));
     }
 
     @DataProvider(name = "generateBackupCodesData")

@@ -16,6 +16,7 @@ import java.util.Properties;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.testng.AssertJUnit.assertNull;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.BACKUP_CODES_SIZE;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.BACKUP_CODE_LENGTH;
 
@@ -124,5 +125,12 @@ public class BackupCodeAuthenticatorConfigImplTest extends PowerMockTestCase {
                 {properties1, " ", " "},
                 {properties2, "5", "5"},
         };
+    }
+
+    @Test
+    public void testGetDefaultPropertyValues() throws IdentityGovernanceException {
+
+        Map<String, String> result = backupCodeAuthenticatorConfig.getDefaultPropertyValues(new String[0], "test");
+        assertNull(result);
     }
 }

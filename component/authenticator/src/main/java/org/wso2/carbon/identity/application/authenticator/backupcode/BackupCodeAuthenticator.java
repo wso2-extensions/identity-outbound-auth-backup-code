@@ -194,12 +194,6 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
                 isBackupCodesExistForUser = isBackupCodesExistForUser(
                         UserCoreUtil.addDomainToName(username, authenticatingUser.getUserStoreDomain()));
             }
-            if (isBackupCodesExistForUser) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Backup codes exists for the user: " + username);
-                }
-            }
-
             /*
              * This multi option URI is used to navigate back to multi option page to select a different
              * authentication option from backup code pages.
@@ -207,15 +201,18 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
             String multiOptionURI = BackupCodeUtil.getMultiOptionURIQueryParam(request);
 
             if (isBackupCodesExistForUser) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Backup codes exists for the user: " + username);
+                }
                 // If backup code is enabled for the user.
                 String backupCodeLoginPageUrl =
                         buildBackupCodeLoginPageURL(context, username, retryParam, multiOptionURI);
                 response.sendRedirect(backupCodeLoginPageUrl);
-            } else {
-                String backupCodeErrorPageUrl =
-                        buildBackupCodeErrorPageURL(context, username, retryParam, multiOptionURI);
-                response.sendRedirect(backupCodeErrorPageUrl);
+                return;
             }
+            String backupCodeErrorPageUrl =
+                    buildBackupCodeErrorPageURL(context, username, retryParam, multiOptionURI);
+            response.sendRedirect(backupCodeErrorPageUrl);
         } catch (IOException e) {
             throw new AuthenticationFailedException(
                     "Error when redirecting the backup code login response, user : " + username, e);
