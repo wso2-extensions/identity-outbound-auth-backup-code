@@ -5,7 +5,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import org.wso2.carbon.extension.identity.helper.IdentityHelperConstants;
 import org.wso2.carbon.identity.application.authentication.framework.config.ConfigurationFacade;
 import org.wso2.carbon.identity.application.authentication.framework.config.builder.FileBasedConfigurationBuilder;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.AuthenticatorConfig;
@@ -86,8 +85,8 @@ public class BackupCodeUtilTest extends PowerMockTestCase {
     @Test(dataProvider = "hashStringData")
     public void testGenerateHashString(String backupCode) throws BackupCodeException {
 
-        String hashedCode = backupCodeUtil.generateHashString(backupCode);
-        String duplicatedHashedCode = backupCodeUtil.generateHashString(backupCode);
+        String hashedCode = backupCodeUtil.generateHashBackupCode(backupCode);
+        String duplicatedHashedCode = backupCodeUtil.generateHashBackupCode(backupCode);
         assertEquals(hashedCode, duplicatedHashedCode);
     }
 
@@ -498,9 +497,9 @@ public class BackupCodeUtilTest extends PowerMockTestCase {
         when(BackupCodeDataHolder.getIdentityGovernanceService()).thenReturn(identityGovernanceService);
         when(identityGovernanceService.getConfiguration(anyObject(), anyString())).thenAnswer(arg -> {
             String[] argArray = (String[]) arg.getArguments()[0];
-            if ((argArray[0]).equals(BACKUP_CODES_SIZE)) {
+            if ((argArray[0]).equals(REQUIRED_NO_OF_BACKUP_CODES)) {
                 return connectorConfigs;
-            } else if ((argArray[0]).equals(BACKUP_CODE_LENGTH)) {
+            } else if ((argArray[0]).equals(LENGTH_OF_BACKUP_CODE)) {
                 return connectorConfigs1;
             }
             return connectorConfigs2;

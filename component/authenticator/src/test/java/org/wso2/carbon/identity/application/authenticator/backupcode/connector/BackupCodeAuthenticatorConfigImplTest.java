@@ -17,8 +17,8 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.AssertJUnit.assertNull;
-import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.BACKUP_CODES_SIZE;
-import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.BACKUP_CODE_LENGTH;
+import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.REQUIRED_NO_OF_BACKUP_CODES;
+import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.LENGTH_OF_BACKUP_CODE;
 
 @PrepareForTest({BackupCodeAuthenticatorConfigImpl.class, IdentityUtil.class})
 public class BackupCodeAuthenticatorConfigImplTest extends PowerMockTestCase {
@@ -59,8 +59,8 @@ public class BackupCodeAuthenticatorConfigImplTest extends PowerMockTestCase {
     public void testGetPropertyNameMapping() {
 
         Map<String, String> nameMapping = new HashMap<>();
-        nameMapping.put(BACKUP_CODE_LENGTH, "Backup code length");
-        nameMapping.put(BACKUP_CODES_SIZE, "Backup code size");
+        nameMapping.put(LENGTH_OF_BACKUP_CODE, "Backup code length");
+        nameMapping.put(REQUIRED_NO_OF_BACKUP_CODES, "Backup code size");
 
         assertEquals(nameMapping, backupCodeAuthenticatorConfig.getPropertyNameMapping());
     }
@@ -94,8 +94,8 @@ public class BackupCodeAuthenticatorConfigImplTest extends PowerMockTestCase {
 
 
         mockStatic(IdentityUtil.class);
-        when(IdentityUtil.getProperty(BACKUP_CODE_LENGTH)).thenReturn(backupCodeLength);
-        when(IdentityUtil.getProperty(BACKUP_CODES_SIZE)).thenReturn(backupCodeSize);
+        when(IdentityUtil.getProperty(LENGTH_OF_BACKUP_CODE)).thenReturn(backupCodeLength);
+        when(IdentityUtil.getProperty(REQUIRED_NO_OF_BACKUP_CODES)).thenReturn(backupCodeSize);
 
         Properties result = backupCodeAuthenticatorConfig.getDefaultPropertyValues("test");
         assertEquals(properties, result);
