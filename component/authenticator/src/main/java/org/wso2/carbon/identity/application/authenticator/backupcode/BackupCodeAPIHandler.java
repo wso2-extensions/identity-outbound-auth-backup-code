@@ -90,21 +90,22 @@ public class BackupCodeAPIHandler {
                 String tenantDomain = MultitenantUtils.getTenantDomain(username);
                 if (userRealm != null) {
                     generatedBackupCodes = BackupCodeUtil.generateBackupCodes(tenantDomain);
+                    ArrayList<String> hashedBackupCodesList = new ArrayList<>();
+                    for (String backupCode : generatedBackupCodes) {
+                        hashedBackupCodesList.add(BackupCodeUtil.generateHashBackupCode(backupCode));
+                    }
+                    updateUserBackupCodes(username, String.join(",", hashedBackupCodesList),
+                            "true");
                 }
-                ArrayList<String> hashedBackupCodesList = new ArrayList<>();
-                for (String backupCode : generatedBackupCodes) {
-                    hashedBackupCodesList.add(BackupCodeUtil.generateHashBackupCode(backupCode));
-                }
-                updateUserBackupCodes(username, String.join(",", hashedBackupCodesList),
-                        "true");
-                return generatedBackupCodes;
+            } else {
+                throw new BackupCodeClientException(ERROR_NO_USERNAME.getCode(),
+                        String.format(ERROR_NO_USERNAME.getMessage()));
             }
-            throw new BackupCodeClientException(ERROR_NO_USERNAME.getCode(),
-                    String.format(ERROR_NO_USERNAME.getMessage()));
         } catch (UserStoreException e) {
             throw new BackupCodeException(ERROR_ACCESS_USER_REALM.getCode(),
                     String.format(ERROR_ACCESS_USER_REALM.getMessage(), username, e));
         }
+        return generatedBackupCodes;
     }
 
     /**
