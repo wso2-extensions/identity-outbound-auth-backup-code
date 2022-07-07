@@ -18,6 +18,7 @@
 package org.wso2.carbon.identity.application.authenticator.backupcode;
 
 import org.apache.commons.lang.StringUtils;
+import org.wso2.carbon.identity.application.authenticator.backupcode.exception.BackupCodeClientException;
 import org.wso2.carbon.identity.application.authenticator.backupcode.exception.BackupCodeException;
 import org.wso2.carbon.identity.application.authenticator.backupcode.util.BackupCodeUtil;
 import org.wso2.carbon.user.api.UserRealm;
@@ -32,8 +33,9 @@ import java.util.Map;
 
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.Claims.BACKUP_CODES_CLAIM;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.Claims.BACKUP_CODES_ENABLED_CLAIM;
-import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_ACCESS_USER_REALM;
-import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_FIND_USER_REALM;
+import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.ErrorMessages.ERROR_ACCESS_USER_REALM;
+import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.ErrorMessages.ERROR_FIND_USER_REALM;
+import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.ErrorMessages.ERROR_NO_USERNAME;
 
 /**
  * Handle backup code API related functionalities.
@@ -51,21 +53,25 @@ public class BackupCodeAPIHandler {
 
         List<String> remainingBackupCodesList = new ArrayList<>();
         try {
-            UserRealm userRealm = BackupCodeUtil.getUserRealm(username);
-            if (userRealm != null) {
-                String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
-                Map<String, String> userClaimValues = userRealm.getUserStoreManager()
-                        .getUserClaimValues(tenantAwareUsername, new String[]{BACKUP_CODES_CLAIM}, null);
-                String backupCodes = userClaimValues.get(BACKUP_CODES_CLAIM);
-                if (backupCodes != null && StringUtils.isNotBlank(backupCodes)) {
-                    remainingBackupCodesList = new ArrayList<>(Arrays.asList(backupCodes.split(",")));
+            if (StringUtils.isNotBlank(username)) {
+                UserRealm userRealm = BackupCodeUtil.getUserRealm(username);
+                if (userRealm != null) {
+                    String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
+                    Map<String, String> userClaimValues = userRealm.getUserStoreManager()
+                            .getUserClaimValues(tenantAwareUsername, new String[]{BACKUP_CODES_CLAIM}, null);
+                    String backupCodes = userClaimValues.get(BACKUP_CODES_CLAIM);
+                    if (StringUtils.isNotBlank(backupCodes)) {
+                        remainingBackupCodesList = new ArrayList<>(Arrays.asList(backupCodes.split(",")));
+                    }
                 }
+                return remainingBackupCodesList.size();
             }
+            throw new BackupCodeClientException(ERROR_NO_USERNAME.getCode(),
+                    String.format(ERROR_NO_USERNAME.getMessage()));
         } catch (UserStoreException e) {
-            throw new BackupCodeException(ERROR_CODE_ERROR_ACCESS_USER_REALM.getCode(),
-                    String.format(ERROR_CODE_ERROR_ACCESS_USER_REALM.getMessage(), username, e));
+            throw new BackupCodeException(ERROR_ACCESS_USER_REALM.getCode(),
+                    String.format(ERROR_ACCESS_USER_REALM.getMessage(), username, e));
         }
-        return remainingBackupCodesList.size();
     }
 
     /**
@@ -84,10 +90,10 @@ public class BackupCodeAPIHandler {
             if (userRealm != null) {
                 generatedBackupCodes = BackupCodeUtil.generateBackupCodes(tenantDomain);
             }
-            updateUserProfile(generatedBackupCodes, username);
+            updateUserBackupCodes(username, generatedBackupCodes);
         } catch (UserStoreException e) {
-            throw new BackupCodeException(ERROR_CODE_ERROR_ACCESS_USER_REALM.getCode(),
-                    String.format(ERROR_CODE_ERROR_ACCESS_USER_REALM.getMessage(), username, e));
+            throw new BackupCodeException(ERROR_ACCESS_USER_REALM.getCode(),
+                    String.format(ERROR_ACCESS_USER_REALM.getMessage(), username, e));
         }
         return generatedBackupCodes;
     }
@@ -99,26 +105,25 @@ public class BackupCodeAPIHandler {
      * @param username Username of the user.
      * @throws BackupCodeException If an error occurred while updating backup codes.
      */
-    private static void updateUserProfile(List<String> generatedBackupCodes, String username)
+    private static void updateUserBackupCodes(String username, List<String> generatedBackupCodes)
             throws BackupCodeException {
 
         try {
-            String tenantAwareUsername;
             ArrayList<String> hashedBackupCodesList = new ArrayList<>();
             Map<String, String> claims = new HashMap<>();
             UserRealm userRealm = BackupCodeUtil.getUserRealm(username);
             if (userRealm != null) {
                 for (String backupCode : generatedBackupCodes) {
-                    hashedBackupCodesList.add(BackupCodeUtil.generateHashString(backupCode));
+                    hashedBackupCodesList.add(BackupCodeUtil.generateHashBackupCode(backupCode));
                 }
                 claims.put(BACKUP_CODES_CLAIM, String.join(",", hashedBackupCodesList));
                 claims.put(BACKUP_CODES_ENABLED_CLAIM, "true");
-                tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
+                String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
                 userRealm.getUserStoreManager().setUserClaimValues(tenantAwareUsername, claims, null);
             }
         } catch (UserStoreException e) {
-            throw new BackupCodeException(ERROR_CODE_ERROR_ACCESS_USER_REALM.getCode(),
-                    String.format(ERROR_CODE_ERROR_ACCESS_USER_REALM.getMessage(), username, e));
+            throw new BackupCodeException(ERROR_ACCESS_USER_REALM.getCode(),
+                    String.format(ERROR_ACCESS_USER_REALM.getMessage(), username, e));
         }
     }
 
@@ -140,14 +145,12 @@ public class BackupCodeAPIHandler {
                 claims.put(BACKUP_CODES_ENABLED_CLAIM, "false");
                 userRealm.getUserStoreManager().setUserClaimValues(tenantAwareUsername, claims, null);
                 return true;
-            } else {
-                throw new BackupCodeException(ERROR_CODE_ERROR_FIND_USER_REALM.getCode(),
-                        String.format(ERROR_CODE_ERROR_FIND_USER_REALM.getMessage(),
-                                MultitenantUtils.getTenantDomain(username)));
             }
+            throw new BackupCodeException(ERROR_FIND_USER_REALM.getCode(),
+                    String.format(ERROR_FIND_USER_REALM.getMessage(), MultitenantUtils.getTenantDomain(username)));
         } catch (UserStoreException e) {
-            throw new BackupCodeException(ERROR_CODE_ERROR_ACCESS_USER_REALM.getCode(),
-                    String.format(ERROR_CODE_ERROR_ACCESS_USER_REALM.getMessage(), username, e));
+            throw new BackupCodeException(ERROR_ACCESS_USER_REALM.getCode(),
+                    String.format(ERROR_ACCESS_USER_REALM.getMessage(), username, e));
         }
     }
 }
