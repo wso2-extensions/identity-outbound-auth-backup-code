@@ -141,9 +141,10 @@ public class BackupCodeAPIHandler {
                 claims.put(BACKUP_CODES_CLAIM, backupCodes);
                 claims.put(BACKUP_CODES_ENABLED_CLAIM, isBackupCodesEnabled);
                 userRealm.getUserStoreManager().setUserClaimValues(tenantAwareUsername, claims, null);
+            } else {
+                throw new BackupCodeException(ERROR_FIND_USER_REALM.getCode(),
+                        String.format(ERROR_FIND_USER_REALM.getMessage(), MultitenantUtils.getTenantDomain(username)));
             }
-            throw new BackupCodeException(ERROR_FIND_USER_REALM.getCode(),
-                    String.format(ERROR_FIND_USER_REALM.getMessage(), MultitenantUtils.getTenantDomain(username)));
         } catch (UserStoreException e) {
             throw new BackupCodeException(ERROR_ACCESS_USER_REALM.getCode(),
                     String.format(ERROR_ACCESS_USER_REALM.getMessage(), username, e));
