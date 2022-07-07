@@ -91,7 +91,12 @@ public class BackupCodeAPIHandler {
                 if (userRealm != null) {
                     generatedBackupCodes = BackupCodeUtil.generateBackupCodes(tenantDomain);
                 }
-                updateUserBackupCodes(username, generatedBackupCodes);
+                ArrayList<String> hashedBackupCodesList = new ArrayList<>();
+                for (String backupCode : generatedBackupCodes) {
+                    hashedBackupCodesList.add(BackupCodeUtil.generateHashBackupCode(backupCode));
+                }
+                updateUserBackupCodes(username, String.join(",", hashedBackupCodesList),
+                        "true");
                 return generatedBackupCodes;
             }
             throw new BackupCodeClientException(ERROR_NO_USERNAME.getCode(),
@@ -100,24 +105,6 @@ public class BackupCodeAPIHandler {
             throw new BackupCodeException(ERROR_ACCESS_USER_REALM.getCode(),
                     String.format(ERROR_ACCESS_USER_REALM.getMessage(), username, e));
         }
-    }
-
-    /**
-     * Update backup code claims for the user.
-     *
-     * @param generatedBackupCodes Generated backup codes as a comma separated string.
-     * @param username Username of the user.
-     * @throws BackupCodeException If an error occurred while updating backup codes.
-     */
-    private static void updateUserBackupCodes(String username, List<String> generatedBackupCodes)
-            throws BackupCodeException {
-
-        ArrayList<String> hashedBackupCodesList = new ArrayList<>();
-        for (String backupCode : generatedBackupCodes) {
-            hashedBackupCodesList.add(BackupCodeUtil.generateHashBackupCode(backupCode));
-        }
-        updateUserClaims(username, String.join(",", hashedBackupCodesList),
-                "true");
     }
 
     /**
@@ -130,7 +117,7 @@ public class BackupCodeAPIHandler {
     public static boolean deleteBackupCodes(String username) throws BackupCodeException {
 
         if (StringUtils.isNotBlank(username)) {
-            updateUserClaims(username, "", "false");
+            updateUserBackupCodes(username, "", "false");
             return true;
         }
         throw new BackupCodeClientException(ERROR_NO_USERNAME.getCode(), String.format(ERROR_NO_USERNAME.getMessage()));
@@ -143,7 +130,7 @@ public class BackupCodeAPIHandler {
      * @throws BackupCodeException when user realm is null for given tenant domain or when an error occurred while
      * updating user claims.
      */
-    private static void updateUserClaims(String username, String backupCodes, String isBackupCodesEnabled)
+    private static void updateUserBackupCodes(String username, String backupCodes, String isBackupCodesEnabled)
             throws BackupCodeException{
 
         try {
