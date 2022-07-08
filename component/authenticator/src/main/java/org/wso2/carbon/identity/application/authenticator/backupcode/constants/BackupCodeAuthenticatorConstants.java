@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, WSO2 Inc. (http://www.wso2.com) All Rights Reserved.
+ * Copyright (c) 2022, WSO2 Inc. (http://www.wso2.com).
  *
  * WSO2 Inc. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -11,7 +11,7 @@
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
@@ -64,7 +64,10 @@ public class BackupCodeAuthenticatorConstants {
         ERROR_ACCESS_USER_REALM("65009",
                 "Error occurred failed while trying to access userRealm of the user : %s"),
         ERROR_HASH_BACKUP_CODE("65010", "Error occurred while hashing backup codes"),
-        ERROR_GETTING_CONFIG("65011", "Error occurred while getting backup code configurations");
+        ERROR_GETTING_CONFIG("65011", "Error occurred while getting backup code configurations"),
+        ERROR_GETTING_THE_USER_REALM("65012", "Error occurred while getting the user realm"),
+        ERROR_GETTING_THE_USER_STORE_MANAGER("65013", "Error occurred while getting the user store manager"),
+        ERROR_SETTING_USER_CLAIM_VALUES("65014", "Error occurred while setting user claim values");
 
         private final String code;
         private final String message;
