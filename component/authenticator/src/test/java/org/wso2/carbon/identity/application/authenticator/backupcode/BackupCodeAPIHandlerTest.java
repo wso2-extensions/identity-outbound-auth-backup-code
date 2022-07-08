@@ -37,7 +37,8 @@ public class BackupCodeAPIHandlerTest extends PowerMockTestCase {
     UserStoreManager userStoreManager;
 
     @Test(dataProvider = "backupCodesCountData")
-    public void testGetRemainingBackupCodesCount(Map<String, String> userClaimValues, int remainingBackupCodesCount)
+    public void testGetRemainingBackupCodesCount(Map<String, String> userClaimValues, String username,
+                                                 int remainingBackupCodesCount)
             throws UserStoreException, BackupCodeException {
 
         mockStatic(BackupCodeUtil.class);
@@ -49,10 +50,12 @@ public class BackupCodeAPIHandlerTest extends PowerMockTestCase {
         when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
         when(userStoreManager.getUserClaimValues(tenantAwareUserName, new String[]{BACKUP_CODES_CLAIM}, null)).
                 thenReturn(userClaimValues);
-        assertEquals(remainingBackupCodesCount, backupCodeAPIHandler.getRemainingBackupCodesCount(username));
-
-        when(BackupCodeUtil.getUserRealm("test2")).thenReturn(null);
-        assertEquals(0, backupCodeAPIHandler.getRemainingBackupCodesCount("test2"));
+        if (username != "test1") {
+            when(BackupCodeUtil.getUserRealm("test2")).thenReturn(null);
+            assertEquals(0, backupCodeAPIHandler.getRemainingBackupCodesCount("test2"));
+        } else {
+            assertEquals(remainingBackupCodesCount, backupCodeAPIHandler.getRemainingBackupCodesCount(username));
+        }
     }
 
     @DataProvider(name = "backupCodesCountData")
@@ -75,10 +78,10 @@ public class BackupCodeAPIHandlerTest extends PowerMockTestCase {
         testClaims4.put(BACKUP_CODES_ENABLED_CLAIM, "true");
 
         return new Object[][]{
-                {testClaims1, 0},
-                {testClaims2, 1},
-                {testClaims3, 0},
-                {testClaims4, 2}
+                {testClaims1, username, 0},
+                {testClaims2, username, 1},
+                {testClaims3, username, 0},
+                {testClaims4, username, 2}
         };
     }
 

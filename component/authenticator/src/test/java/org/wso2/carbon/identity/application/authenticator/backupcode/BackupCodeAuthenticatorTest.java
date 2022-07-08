@@ -1,6 +1,5 @@
 package org.wso2.carbon.identity.application.authenticator.backupcode;
 
-import junit.framework.TestCase;
 import org.mockito.Mock;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.testng.PowerMockTestCase;
@@ -19,9 +18,6 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
     @Mock
     HttpServletRequest httpServletRequest;
 
-    public void testProcess() {
-    }
-
     @Test(dataProvider = "canHandleData")
     public void testCanHandle(String backupCode, boolean expectedValue) {
 
@@ -39,12 +35,6 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
         };
     }
 
-    public void testRetryAuthenticationEnabled() {
-    }
-
-    public void testGetContextIdentifier() {
-    }
-
     @Test
     public void testTestGetName() {
 
@@ -57,11 +47,5 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
 
         BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
         assertEquals(  "Backup Code Authenticator", backupCodeAuthenticator.getFriendlyName());
-    }
-
-    public void testInitiateAuthenticationRequest() {
-    }
-
-    public void testProcessAuthenticationResponse() {
     }
 }
