@@ -213,7 +213,7 @@ public class BackupCodeUtilTest extends PowerMockTestCase {
     }
 
     @Test(dataProvider = "getUserRealmData")
-    public void testGetUserRealm(String username) throws UserStoreException {
+    public void testGetUserRealm(String username) throws UserStoreException, BackupCodeException {
 
         mockStatic(MultitenantUtils.class);
         mockStatic(IdentityTenantUtil.class);

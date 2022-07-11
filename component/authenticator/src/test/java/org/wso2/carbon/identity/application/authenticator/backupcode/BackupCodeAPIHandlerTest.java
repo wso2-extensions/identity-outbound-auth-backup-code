@@ -43,18 +43,16 @@ public class BackupCodeAPIHandlerTest extends PowerMockTestCase {
 
         mockStatic(BackupCodeUtil.class);
         mockStatic(MultitenantUtils.class);
-        BackupCodeAPIHandler backupCodeAPIHandler = new BackupCodeAPIHandler();
-
         when(BackupCodeUtil.getUserRealm(username)).thenReturn(userRealm);
         when(MultitenantUtils.getTenantAwareUsername(username)).thenReturn(tenantAwareUserName);
-        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(BackupCodeUtil.getUserStoreManagerOfUser(username)).thenReturn(userStoreManager);
         when(userStoreManager.getUserClaimValues(tenantAwareUserName, new String[]{BACKUP_CODES_CLAIM}, null)).
                 thenReturn(userClaimValues);
         if (username != "test1") {
             when(BackupCodeUtil.getUserRealm("test2")).thenReturn(null);
-            assertEquals(0, backupCodeAPIHandler.getRemainingBackupCodesCount("test2"));
+            assertEquals(0, BackupCodeAPIHandler.getRemainingBackupCodesCount("test2"));
         } else {
-            assertEquals(remainingBackupCodesCount, backupCodeAPIHandler.getRemainingBackupCodesCount(username));
+            assertEquals(remainingBackupCodesCount, BackupCodeAPIHandler.getRemainingBackupCodesCount(username));
         }
     }
 
@@ -86,19 +84,16 @@ public class BackupCodeAPIHandlerTest extends PowerMockTestCase {
     }
 
     @Test(dataProvider = "generateBackupCodesData")
-    public void testGenerateBackupCodes(List<String> backupCodes) throws UserStoreException, BackupCodeException {
+    public void testGenerateBackupCodes(List<String> backupCodes) throws BackupCodeException {
 
         mockStatic(BackupCodeUtil.class);
         mockStatic(MultitenantUtils.class);
-        BackupCodeAPIHandler backupCodeAPIHandler = new BackupCodeAPIHandler();
         when(BackupCodeUtil.getUserRealm(username)).thenReturn(userRealm);
         when(MultitenantUtils.getTenantDomain(username)).thenReturn(tenantDomain);
-        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(MultitenantUtils.getTenantAwareUsername(username)).thenReturn(username);
+        when(BackupCodeUtil.getUserStoreManagerOfUser(username)).thenReturn(userStoreManager);
         when(BackupCodeUtil.generateBackupCodes(tenantDomain)).thenReturn(backupCodes);
-        assertEquals(backupCodes, backupCodeAPIHandler.generateBackupCodes(username));
-
-        when(BackupCodeUtil.getUserRealm("test2")).thenReturn(null);
-        assertEquals(new ArrayList<>(), backupCodeAPIHandler.generateBackupCodes("test2"));
+        assertEquals(backupCodes, BackupCodeAPIHandler.generateBackupCodes(username));
     }
 
     @DataProvider(name = "generateBackupCodesData")
@@ -123,16 +118,13 @@ public class BackupCodeAPIHandlerTest extends PowerMockTestCase {
     }
 
     @Test
-    public void testDeleteBackupCodes() throws UserStoreException, BackupCodeException {
+    public void testDeleteBackupCodes() throws BackupCodeException {
 
         mockStatic(BackupCodeUtil.class);
         mockStatic(MultitenantUtils.class);
-        BackupCodeAPIHandler backupCodeAPIHandler = new BackupCodeAPIHandler();
-
         when(BackupCodeUtil.getUserRealm(username)).thenReturn(userRealm);
         when(MultitenantUtils.getTenantAwareUsername(username)).thenReturn(tenantAwareUserName);
-        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
-
-        assertEquals(true, backupCodeAPIHandler.deleteBackupCodes(username));
+        when(BackupCodeUtil.getUserStoreManagerOfUser(username)).thenReturn(userStoreManager);
+        assertEquals(true, BackupCodeAPIHandler.deleteBackupCodes(username));
     }
 }
