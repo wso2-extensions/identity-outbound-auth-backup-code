@@ -66,7 +66,8 @@ public class BackupCodeAuthenticatorConstants {
         ERROR_HASH_BACKUP_CODE("65010", "Error occurred while hashing backup codes"),
         ERROR_GETTING_CONFIG("65011", "Error occurred while getting backup code configurations"),
         ERROR_GETTING_THE_USER_REALM("65012", "Error occurred while getting the user realm"),
-        ERROR_GETTING_THE_USER_STORE_MANAGER("65013", "Error occurred while getting the user store manager"),
+        ERROR_GETTING_THE_USER_STORE_MANAGER("65013", "Error occurred while getting the user store manager" +
+                " for the user: %s"),
         ERROR_SETTING_USER_CLAIM_VALUES("65014", "Error occurred while setting user claim values");
 
         private final String code;

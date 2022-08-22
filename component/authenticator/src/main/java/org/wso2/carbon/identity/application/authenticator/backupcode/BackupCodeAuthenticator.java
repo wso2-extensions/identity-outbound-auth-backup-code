@@ -252,13 +252,13 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
         try {
             String backupCodes;
             if (isInitialFederationAttempt(context)) {
-                backupCodes = backupCodesForFederatedUser(context);
+                backupCodes = getBackupCodesForFederatedUser(context);
                 if (!isValidBackupCode(token, context, username, backupCodes)) {
                     throw new AuthenticationFailedException(
                             "Invalid Token. Authentication failed for federated user: " + username);
                 }
             } else {
-                backupCodes = backupCodesForLocalUser(username);
+                backupCodes = getBackupCodesForLocalUser(username);
                 if (!isValidBackupCode(token, context, username, backupCodes)) {
                     handleBackupCodeVerificationFail(authenticatingUser);
                     throw new AuthenticationFailedException(
@@ -507,7 +507,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
      * @param context Authentication context.
      * @return true if backup code is valid otherwise false.
      */
-    private String backupCodesForFederatedUser(AuthenticationContext context) {
+    private String getBackupCodesForFederatedUser(AuthenticationContext context) {
 
         String backupCodes = null;
         if (context.getProperty(BACKUP_CODES_CLAIM) != null) {
@@ -523,7 +523,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
      * @return true if code is valid otherwise false.
      * @throws BackupCodeException UserRealm for user or tenant domain is null.
      */
-    private String backupCodesForLocalUser(String username) throws BackupCodeException {
+    private String getBackupCodesForLocalUser(String username) throws BackupCodeException {
 
         String tenantAwareUsername = null;
         try {
