@@ -43,7 +43,9 @@ import org.wso2.carbon.identity.handler.event.account.lock.exception.AccountLock
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.api.UserStoreManager;
+import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.service.RealmService;
+import org.wso2.carbon.user.core.util.UserCoreUtil;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.net.URI;
@@ -74,6 +76,7 @@ import static org.wso2.carbon.identity.application.authenticator.backupcode.cons
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.LOCAL_AUTHENTICATOR;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.LOGIN_PAGE;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.SUPER_TENANT_DOMAIN;
+import static org.wso2.carbon.user.core.UserCoreConstants.PRIMARY_DEFAULT_DOMAIN_NAME;
 
 /**
  * Util class for backup code authenticator.
@@ -122,11 +125,12 @@ public class BackupCodeUtil {
      * @return The userRealm.
      * @throws BackupCodeException If an error occurred while getting the user realm.
      */
-    public static UserRealm getUserRealm(String username) throws BackupCodeException {
+    private static UserRealm getUserRealm(String username) throws BackupCodeException {
 
         UserRealm userRealm;
-        if (username == null) {
-            return null;
+        if (StringUtils.isBlank(username)) {
+            throw new BackupCodeException(ERROR_GETTING_THE_USER_REALM.getCode(),
+                    String.format(ERROR_GETTING_THE_USER_REALM.getMessage()));
         }
         try {
             String tenantDomain = MultitenantUtils.getTenantDomain(username);
@@ -144,14 +148,30 @@ public class BackupCodeUtil {
         return userRealm;
     }
 
+    /**
+     * Get the userStore manager for the given username.
+     *
+     * @param fullyQualifiedUsername Full qualified username of the user.
+     * @return The UserStoreManager.
+     * @throws BackupCodeException If an error occurred while getting the user store manager.
+     */
     public static UserStoreManager getUserStoreManagerOfUser(String fullyQualifiedUsername) throws BackupCodeException {
 
         UserRealm userRealm = getUserRealm(fullyQualifiedUsername);
+        String userStoreDomain = UserCoreUtil.extractDomainFromName(fullyQualifiedUsername);
         try {
-            return userRealm.getUserStoreManager();
+            UserStoreManager userStoreManager = userRealm.getUserStoreManager();
+            if (userStoreManager == null) {
+                throw new BackupCodeException(ERROR_GETTING_THE_USER_STORE_MANAGER.getCode(),
+                        ERROR_GETTING_THE_USER_STORE_MANAGER.getMessage());
+            }
+            if (StringUtils.isBlank(userStoreDomain) || PRIMARY_DEFAULT_DOMAIN_NAME.equals(userStoreDomain)) {
+                return userStoreManager;
+            }
+            return ((AbstractUserStoreManager) userStoreManager).getSecondaryUserStoreManager(userStoreDomain);
         } catch (UserStoreException e) {
             throw new BackupCodeException(ERROR_GETTING_THE_USER_STORE_MANAGER.getCode(),
-                    String.format(ERROR_GETTING_THE_USER_STORE_MANAGER.getMessage(), fullyQualifiedUsername, e));
+                    ERROR_GETTING_THE_USER_STORE_MANAGER.getMessage(), e);
         }
     }
 
@@ -434,8 +454,7 @@ public class BackupCodeUtil {
             connectorConfigs = governanceService.getConfiguration(new String[]{key}, tenantDomain);
             return connectorConfigs[0].getValue();
         } catch (IdentityGovernanceException e) {
-            throw new BackupCodeException(ERROR_GETTING_CONFIG.getCode(),
-                    ERROR_GETTING_CONFIG.getMessage(), e);
+            throw new BackupCodeException(ERROR_GETTING_CONFIG.getCode(), ERROR_GETTING_CONFIG.getMessage(), e);
         }
     }
 
@@ -457,8 +476,7 @@ public class BackupCodeUtil {
             }
             return builder.toString();
         } catch (NoSuchAlgorithmException e) {
-            throw new BackupCodeException(ERROR_HASH_BACKUP_CODE.getCode(),
-                    ERROR_HASH_BACKUP_CODE.getMessage(), e);
+            throw new BackupCodeException(ERROR_HASH_BACKUP_CODE.getCode(), ERROR_HASH_BACKUP_CODE.getMessage(), e);
         }
     }
 }
