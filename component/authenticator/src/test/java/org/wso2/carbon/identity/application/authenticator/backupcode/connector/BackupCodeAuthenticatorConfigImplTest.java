@@ -52,7 +52,7 @@ public class BackupCodeAuthenticatorConfigImplTest extends PowerMockTestCase {
     @Test
     public void testGetFriendlyName() {
 
-        assertEquals("Backup Code", backupCodeAuthenticatorConfig.getFriendlyName());
+        assertEquals(  "Backup Code Authenticator", backupCodeAuthenticatorConfig.getFriendlyName());
     }
 
     @Test
