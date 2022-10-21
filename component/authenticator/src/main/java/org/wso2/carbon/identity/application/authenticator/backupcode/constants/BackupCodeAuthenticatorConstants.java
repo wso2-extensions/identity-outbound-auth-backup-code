@@ -48,6 +48,11 @@ public class BackupCodeAuthenticatorConstants {
     public static final String IS_INITIAL_FEDERATED_USER_ATTEMPT = "isInitialFederationAttempt";
     public static final String CODE_MISMATCH = "codeMismatch";
     public static final String GET_PROPERTY_FROM_IDENTITY_CONFIG = "getPropertiesFromLocal";
+    public static final String MAX_ATTEMPTS_EXCEEDED = "MAX_ATTEMPTS_EXCEEDED";
+    public static final String ADMIN_INITIATED = "ADMIN_INITIATED";
+    public static final String CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE = "showAuthFailureReasonOnLoginPage";
+    public static final String ERROR_CODE = "errorCode";
+    public static final String LOCKED_REASON = "lockedReason";
 
     public enum ErrorMessages {
 
@@ -104,5 +109,6 @@ public class BackupCodeAuthenticatorConstants {
         public static final String BACKUP_CODES_ENABLED_CLAIM = "http://wso2.org/claims/identity/backupCodeEnabled";
         public static final String BACKUP_CODE_FAILED_ATTEMPTS_CLAIM =
                 "http://wso2.org/claims/identity/failedBackupCodeAttempts";
+        public static final String ACCOUNT_LOCKED_REASON_CLAIM = "http://wso2.org/claims/identity/lockedReason";
     }
 }
