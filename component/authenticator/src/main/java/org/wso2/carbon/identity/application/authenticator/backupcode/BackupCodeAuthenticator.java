@@ -491,29 +491,28 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
         String errorParam = StringUtils.EMPTY;
         IdentityErrorMsgContext errorContext = IdentityUtil.getIdentityErrorMsg();
         IdentityUtil.clearIdentityErrorMsg();
-        if (errorContext != null && errorContext.getErrorCode() != null) {
-
-            log.debug("Identity error message context is not null");
-
+        if (errorContext != null) {
+            log.debug("Identity error message context is not null.");
             String errorCode = errorContext.getErrorCode();
             String reason = null;
-
-            String[] errorCodeWithReason = errorCode.split(":", 2);
-            errorCode = errorCodeWithReason[0];
-            if (errorCodeWithReason.length > 1) {
-                reason = errorCodeWithReason[1];
-            }
-            if (errorCode.equals(UserCoreConstants.ErrorCode.USER_IS_LOCKED)) {
-                Map<String, String> paramMap = new HashMap<>();
-                paramMap.put(ERROR_CODE, errorCode);
-                if (StringUtils.isNotBlank(reason)) {
-                    paramMap.put(LOCKED_REASON, reason);
-                } else if ( errorContext.getFailedLoginAttempts() !=0 &&
-                        errorContext.getFailedLoginAttempts() == errorContext.getMaximumLoginAttempts()) {
-                    // The account just got locked because of max attempts reached.
-                    paramMap.put(LOCKED_REASON, BackupCodeAuthenticatorConstants.MAX_ATTEMPTS_EXCEEDED);
+            if (errorCode != null) {
+                String[] errorCodeWithReason = errorCode.split(":", 2);
+                errorCode = errorCodeWithReason[0];
+                if (errorCodeWithReason.length > 1) {
+                    reason = errorCodeWithReason[1];
                 }
-                errorParam = buildErrorParamString(paramMap);
+                if (errorCode.equals(UserCoreConstants.ErrorCode.USER_IS_LOCKED)) {
+                    Map<String, String> paramMap = new HashMap<>();
+                    paramMap.put(ERROR_CODE, errorCode);
+                    if (StringUtils.isNotBlank(reason)) {
+                        paramMap.put(LOCKED_REASON, reason);
+                    } else if (errorContext.getFailedLoginAttempts() != 0 &&
+                            errorContext.getFailedLoginAttempts() == errorContext.getMaximumLoginAttempts()) {
+                        // The account just got locked because of max attempts reached.
+                        paramMap.put(LOCKED_REASON, BackupCodeAuthenticatorConstants.MAX_ATTEMPTS_EXCEEDED);
+                    }
+                    errorParam = buildErrorParamString(paramMap);
+                }
             }
         }
         return errorParam;
