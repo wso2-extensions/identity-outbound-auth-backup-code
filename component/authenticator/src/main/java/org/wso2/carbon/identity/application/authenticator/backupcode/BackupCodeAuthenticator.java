@@ -197,11 +197,11 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
             username = UserCoreUtil.addTenantDomainToEntry(authenticatingUser.getUserName(), tenantDomain);
             context.setProperty(AUTHENTICATED_USER, authenticatingUser);
 
-            String retryParam = "";
+            String retryParam = StringUtils.EMPTY;
             if (context.isRetrying()) {
                 retryParam = "&authFailure=true&authFailureMsg=login.fail.message";
             }
-            String errorParam="";
+            String errorParam=StringUtils.EMPTY;
             if (Boolean.parseBoolean(showAuthFailureReasonOnLoginPage)) {
                 errorParam = getErrorParamsStringFromErrorContext();
             }
@@ -482,7 +482,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
 
     private String getErrorParamsStringFromErrorContext() {
 
-        String errorParam = "";
+        String errorParam = StringUtils.EMPTY;
         IdentityErrorMsgContext errorContext = IdentityUtil.getIdentityErrorMsg();
         IdentityUtil.clearIdentityErrorMsg();
         if (errorContext != null && errorContext.getErrorCode() != null) {
@@ -496,7 +496,6 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
             errorCode = errorCodeWithReason[0];
             if (errorCodeWithReason.length > 1) {
                 reason = errorCodeWithReason[1];
-
             }
             if (errorCode.equals(UserCoreConstants.ErrorCode.USER_IS_LOCKED)) {
                 Map<String, String> paramMap = new HashMap<>();
@@ -556,7 +555,8 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
     }
 
     private void setErrorContextWhenAccountLocked(String username) throws AuthenticationFailedException {
-        String accountLockedReason = "";
+
+        String accountLockedReason = StringUtils.EMPTY;
         String tenantAwareUsername;
         try {
             tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
