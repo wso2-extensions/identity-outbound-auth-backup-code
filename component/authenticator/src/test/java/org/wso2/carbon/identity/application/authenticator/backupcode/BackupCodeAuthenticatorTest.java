@@ -309,9 +309,9 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
     }
 
     @Test(dataProvider = "initiateAuthenticationRequestWithErrorContextData")
-    public void testInitiateAuthenticationRequestWithErrorContext(String showError, Boolean errorContextPresent,
-                                                                  int failedAttempts, int maxAttempts,
-                                                                  String lockedReason,
+    public void testInitiateAuthenticationRequestWithErrorContext(String showError, String showErrorOnLoginPage,
+                                                                  Boolean errorContextPresent, int failedAttempts,
+                                                                  int maxAttempts, String lockedReason,
                                                                   Boolean hasErrorCode, String errorCodeParam,
                                                                   Boolean hasLockedReason, String lockedReasonParam)
             throws AuthenticationFailedException, BackupCodeException, UserStoreException, IOException {
@@ -322,7 +322,9 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
 
         BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
         Map<String, String> parameterMap = new HashMap<>();
-        parameterMap.put(BackupCodeAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE, showError);
+        parameterMap.put(BackupCodeAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON, showError);
+        parameterMap.put(BackupCodeAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE,
+                showErrorOnLoginPage);
         AuthenticatorConfig authenticatorConfig1 = new AuthenticatorConfig(
                 "backup-code-authenticator", true, parameterMap);
         IdentityErrorMsgContext customErrorMessageContext = null;
@@ -370,15 +372,16 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
         String lockedErrorCode = UserCoreConstants.ErrorCode.USER_IS_LOCKED;
 
         return new Object[][]{
-                {"true", true, 3, 3, "", true, "&errorCode=" + lockedErrorCode, true,
+                {"true", "true", true, 3, 3, "", true, "&errorCode=" + lockedErrorCode, true,
                         "&lockedReason=" + maxAttemptsExceeded},
-                {"true", true, 0, 0, maxAttemptsExceeded, true, "&errorCode=" + lockedErrorCode, true,
+                {"false", "true", true, 3, 3, "", false, "errorCode", false, "lockedReason"},
+                {"true", "true", true, 0, 0, maxAttemptsExceeded, true, "&errorCode=" + lockedErrorCode, true,
                         "&lockedReason=" + maxAttemptsExceeded},
-                {"true", true, 0, 0, adminLocked, true, "&errorCode=" + lockedErrorCode, true,
+                {"true", "true", true, 0, 0, adminLocked, true, "&errorCode=" + lockedErrorCode, true,
                         "&lockedReason=" + adminLocked},
-                {"true", true, 0, 0, "", true, "&errorCode=" + lockedErrorCode, false, "lockedReason"},
-                {"false", true, 3, 3, "", false, "errorCode", false, "lockedReason"},
-                {"true", false, 3, 3, "", false, "errorCode", false, "lockedReason"}
+                {"true", "true", true, 0, 0, "", true, "&errorCode=" + lockedErrorCode, false, "lockedReason"},
+                {"true", "false", true, 3, 3, "", false, "errorCode", false, "lockedReason"},
+                {"true", "true", false, 3, 3, "", false, "errorCode", false, "lockedReason"}
         };
     }
 }

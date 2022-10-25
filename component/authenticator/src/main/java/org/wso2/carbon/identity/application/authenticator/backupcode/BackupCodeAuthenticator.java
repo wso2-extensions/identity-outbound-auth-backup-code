@@ -63,6 +63,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.SESSION_DATA_KEY;
+import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.ERROR_CODE;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.LOCKED_REASON;
@@ -161,11 +162,13 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
 
         String username = null;
         String tenantDomain = context.getTenantDomain();
-        String showAuthFailureReasonOnLoginPage = null;
 
         Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
-        if (parameterMap != null) {
-            showAuthFailureReasonOnLoginPage = parameterMap.get(CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE);
+        boolean showAuthFailureReason = Boolean.parseBoolean(parameterMap.get(CONF_SHOW_AUTH_FAILURE_REASON));
+        boolean showAuthFailureReasonOnLoginPage = false;
+        if (showAuthFailureReason) {
+            showAuthFailureReasonOnLoginPage = Boolean.parseBoolean(
+                    parameterMap.get(CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE));
         }
         context.setProperty(AUTHENTICATION, BACKUP_CODE_AUTHENTICATOR_NAME);
         if (!tenantDomain.equals(SUPER_TENANT_DOMAIN)) {
@@ -201,8 +204,8 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
             if (context.isRetrying()) {
                 retryParam = "&authFailure=true&authFailureMsg=login.fail.message";
             }
-            String errorParam=StringUtils.EMPTY;
-            if (Boolean.parseBoolean(showAuthFailureReasonOnLoginPage)) {
+            String errorParam = StringUtils.EMPTY;
+            if (showAuthFailureReason) {
                 errorParam = getErrorParamsStringFromErrorContext();
             }
             boolean isBackupCodesExistForUser = false;
@@ -226,12 +229,15 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
 
             if (isBackupCodesExistForUser) {
                 // If backup code is enabled for the user.
+                if (!showAuthFailureReasonOnLoginPage) {
+                    errorParam = StringUtils.EMPTY;
+                }
                 String backupCodeLoginPageUrl =
                         buildBackupCodeLoginPageURL(context, username, retryParam, errorParam, multiOptionURI);
                 response.sendRedirect(backupCodeLoginPageUrl);
             } else {
                 String backupCodeErrorPageUrl =
-                        buildBackupCodeErrorPageURL(context, username, retryParam, multiOptionURI);
+                        buildBackupCodeErrorPageURL(context, username, retryParam, errorParam, multiOptionURI);
                 response.sendRedirect(backupCodeErrorPageUrl);
             }
         } catch (IOException e) {
@@ -524,11 +530,11 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
     }
 
     private String buildBackupCodeErrorPageURL(AuthenticationContext context, String username, String retryParam,
-                                               String multiOptionURI)
+                                               String errorParam, String multiOptionURI)
             throws AuthenticationFailedException, URISyntaxException, URLBuilderException {
 
         String queryString = "sessionDataKey=" + context.getContextIdentifier() + "&authenticators=" + getName() +
-                "&type=backup_code_error" + retryParam + "&username=" + username + multiOptionURI;
+                "&type=backup_code_error" + retryParam + "&username=" + username + errorParam + multiOptionURI;
         String errorPage = FrameworkUtils.appendQueryParamsStringToUrl(BackupCodeUtil.getBackupCodeErrorPage(context),
                 queryString);
         return buildAbsoluteURL(errorPage);
@@ -570,8 +576,8 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
             throw new AuthenticationFailedException(
                     "Could not get the account locked reason. Authentication Failed for user: " + username);
         }
-        IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(UserCoreConstants.ErrorCode.USER_IS_LOCKED +
-                ":" + accountLockedReason);
+        IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(
+                UserCoreConstants.ErrorCode.USER_IS_LOCKED + ":" + accountLockedReason);
         IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
     }
 
