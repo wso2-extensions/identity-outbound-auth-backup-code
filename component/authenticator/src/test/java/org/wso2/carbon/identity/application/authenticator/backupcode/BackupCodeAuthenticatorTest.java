@@ -37,6 +37,7 @@ import org.wso2.carbon.identity.application.authentication.framework.context.Aut
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants;
 import org.wso2.carbon.identity.application.authenticator.backupcode.exception.BackupCodeException;
 import org.wso2.carbon.identity.application.authenticator.backupcode.internal.BackupCodeDataHolder;
@@ -223,7 +224,7 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
 
         BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
         Map<String, String> parameterMap = new HashMap<>();
-        parameterMap.put(BackupCodeAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE, "false");
+        parameterMap.put(FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG, "false");
         AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig(
                 "backup-code-authenticator", true, parameterMap);
         try {
@@ -322,9 +323,8 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
 
         BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
         Map<String, String> parameterMap = new HashMap<>();
-        parameterMap.put(BackupCodeAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON, showError);
-        parameterMap.put(BackupCodeAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE,
-                showErrorOnLoginPage);
+        parameterMap.put(FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG, showError);
+        parameterMap.put(FrameworkConstants.SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE_CONF, showErrorOnLoginPage);
         AuthenticatorConfig authenticatorConfig1 = new AuthenticatorConfig(
                 "backup-code-authenticator", true, parameterMap);
         IdentityErrorMsgContext customErrorMessageContext = null;
@@ -379,7 +379,8 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
                         "&lockedReason=" + maxAttemptsExceeded},
                 {"true", "true", true, 0, 0, adminLocked, true, "&errorCode=" + lockedErrorCode, true,
                         "&lockedReason=" + adminLocked},
-                {"true", "true", true, 0, 0, "", true, "&errorCode=" + lockedErrorCode, false, "lockedReason"},
+                {"true", "true", true, 0, 0, "", true, "&errorCode=" + lockedErrorCode, true,
+                        "&lockedReason=" + maxAttemptsExceeded},
                 {"true", "false", true, 3, 3, "", false, "errorCode", false, "lockedReason"},
                 {"true", "true", false, 3, 3, "", false, "errorCode", false, "lockedReason"}
         };

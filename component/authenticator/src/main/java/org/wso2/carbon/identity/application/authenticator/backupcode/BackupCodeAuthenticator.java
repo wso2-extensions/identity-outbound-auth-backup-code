@@ -17,6 +17,7 @@
  */
 package org.wso2.carbon.identity.application.authenticator.backupcode;
 
+import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants;
 import org.wso2.carbon.identity.application.authenticator.backupcode.exception.BackupCodeException;
 import org.wso2.carbon.identity.application.authenticator.backupcode.internal.BackupCodeDataHolder;
@@ -63,10 +64,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.SESSION_DATA_KEY;
-import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON;
-import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE;
-import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.ERROR_CODE;
-import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.LOCKED_REASON;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.AUTHENTICATED_USER;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.AUTHENTICATION;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.BACKUP_CODE_AUTHENTICATOR_FRIENDLY_NAME;
@@ -164,11 +161,11 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
         String tenantDomain = context.getTenantDomain();
 
         Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
-        boolean showAuthFailureReason = Boolean.parseBoolean(parameterMap.get(CONF_SHOW_AUTH_FAILURE_REASON));
+        boolean showAuthFailureReason = Boolean.parseBoolean(parameterMap.get(FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG));
         boolean showAuthFailureReasonOnLoginPage = false;
         if (showAuthFailureReason) {
             showAuthFailureReasonOnLoginPage = Boolean.parseBoolean(
-                    parameterMap.get(CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE));
+                    parameterMap.get(FrameworkConstants.SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE_CONF));
         }
         context.setProperty(AUTHENTICATION, BACKUP_CODE_AUTHENTICATOR_NAME);
         if (!tenantDomain.equals(SUPER_TENANT_DOMAIN)) {
@@ -503,13 +500,13 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
                 }
                 if (errorCode.equals(UserCoreConstants.ErrorCode.USER_IS_LOCKED)) {
                     Map<String, String> paramMap = new HashMap<>();
-                    paramMap.put(ERROR_CODE, errorCode);
+                    paramMap.put(FrameworkConstants.ERROR_CODE, errorCode);
                     if (StringUtils.isNotBlank(reason)) {
-                        paramMap.put(LOCKED_REASON, reason);
-                    } else if (errorContext.getFailedLoginAttempts() != 0 &&
-                            errorContext.getFailedLoginAttempts() == errorContext.getMaximumLoginAttempts()) {
+                        paramMap.put(FrameworkConstants.LOCK_REASON, reason);
+                    } else if (errorContext.getFailedLoginAttempts() == errorContext.getMaximumLoginAttempts()) {
                         // The account just got locked because of max attempts reached.
-                        paramMap.put(LOCKED_REASON, BackupCodeAuthenticatorConstants.MAX_ATTEMPTS_EXCEEDED);
+                        paramMap.put(FrameworkConstants.LOCK_REASON,
+                                BackupCodeAuthenticatorConstants.MAX_ATTEMPTS_EXCEEDED);
                     }
                     errorParam = buildErrorParamString(paramMap);
                 }
