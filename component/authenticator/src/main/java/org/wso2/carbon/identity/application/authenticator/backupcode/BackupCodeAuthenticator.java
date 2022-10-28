@@ -161,7 +161,8 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
         String tenantDomain = context.getTenantDomain();
 
         Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
-        boolean showAuthFailureReason = Boolean.parseBoolean(parameterMap.get(FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG));
+        boolean showAuthFailureReason = Boolean.parseBoolean(parameterMap.get(
+                FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG));
         boolean showAuthFailureReasonOnLoginPage = false;
         if (showAuthFailureReason) {
             showAuthFailureReasonOnLoginPage = Boolean.parseBoolean(
