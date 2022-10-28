@@ -224,9 +224,9 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
 
         BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
         Map<String, String> parameterMap = new HashMap<>();
-        parameterMap.put(FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG, "false");
+        parameterMap.put(FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG, String.valueOf(false));
         AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig(
-                "backup-code-authenticator", true, parameterMap);
+                BackupCodeAuthenticatorConstants.BACKUP_CODE_AUTHENTICATOR_NAME, true, parameterMap);
         try {
             mockStatic(BackupCodeUtil.class);
             mockStatic(FederatedAuthenticatorUtil.class);
@@ -310,11 +310,11 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
     }
 
     @Test(dataProvider = "initiateAuthenticationRequestWithErrorContextData")
-    public void testInitiateAuthenticationRequestWithErrorContext(String showError, String showErrorOnLoginPage,
-                                                                  Boolean errorContextPresent, int failedAttempts,
+    public void testInitiateAuthenticationRequestWithErrorContext(boolean showError, boolean showErrorOnLoginPage,
+                                                                  boolean errorContextPresent, int failedAttempts,
                                                                   int maxAttempts, String lockedReason,
-                                                                  Boolean hasErrorCode, String errorCodeParam,
-                                                                  Boolean hasLockedReason, String lockedReasonParam)
+                                                                  boolean hasErrorCode, String errorCodeParam,
+                                                                  boolean hasLockedReason, String lockedReasonParam)
             throws AuthenticationFailedException, BackupCodeException, UserStoreException, IOException {
 
         String username = "TEST-DOMAIN/test@gmail.com";
@@ -323,10 +323,11 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
 
         BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
         Map<String, String> parameterMap = new HashMap<>();
-        parameterMap.put(FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG, showError);
-        parameterMap.put(FrameworkConstants.SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE_CONF, showErrorOnLoginPage);
+        parameterMap.put(FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG, String.valueOf(showError));
+        parameterMap.put(FrameworkConstants.SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE_CONF,
+                String.valueOf(showErrorOnLoginPage));
         AuthenticatorConfig authenticatorConfig1 = new AuthenticatorConfig(
-                "backup-code-authenticator", true, parameterMap);
+                BackupCodeAuthenticatorConstants.BACKUP_CODE_AUTHENTICATOR_NAME, true, parameterMap);
         IdentityErrorMsgContext customErrorMessageContext = null;
         if (errorContextPresent) {
             customErrorMessageContext = new IdentityErrorMsgContext(
@@ -372,17 +373,17 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
         String lockedErrorCode = UserCoreConstants.ErrorCode.USER_IS_LOCKED;
 
         return new Object[][]{
-                {"true", "true", true, 3, 3, "", true, "&errorCode=" + lockedErrorCode, true,
+                {true, true, true, 3, 3, "", true, "&errorCode=" + lockedErrorCode, true,
                         "&lockedReason=" + maxAttemptsExceeded},
-                {"false", "true", true, 3, 3, "", false, "errorCode", false, "lockedReason"},
-                {"true", "true", true, 0, 0, maxAttemptsExceeded, true, "&errorCode=" + lockedErrorCode, true,
+                {false, true, true, 3, 3, "", false, "errorCode", false, "lockedReason"},
+                {true, true, true, 0, 0, maxAttemptsExceeded, true, "&errorCode=" + lockedErrorCode, true,
                         "&lockedReason=" + maxAttemptsExceeded},
-                {"true", "true", true, 0, 0, adminLocked, true, "&errorCode=" + lockedErrorCode, true,
+                {true, true, true, 0, 0, adminLocked, true, "&errorCode=" + lockedErrorCode, true,
                         "&lockedReason=" + adminLocked},
-                {"true", "true", true, 0, 0, "", true, "&errorCode=" + lockedErrorCode, true,
+                {true, true, true, 0, 0, "", true, "&errorCode=" + lockedErrorCode, true,
                         "&lockedReason=" + maxAttemptsExceeded},
-                {"true", "false", true, 3, 3, "", false, "errorCode", false, "lockedReason"},
-                {"true", "true", false, 3, 3, "", false, "errorCode", false, "lockedReason"}
+                {true, false, true, 3, 3, "", false, "errorCode", false, "lockedReason"},
+                {true, true, false, 3, 3, "", false, "errorCode", false, "lockedReason"}
         };
     }
 }

@@ -121,7 +121,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
     public boolean canHandle(HttpServletRequest httpServletRequest) {
 
         String token = httpServletRequest.getParameter(BACKUP_CODE);
-        return (token != null);
+        return (StringUtils.isNotBlank(token));
     }
 
     /**
@@ -493,7 +493,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
             log.debug("Identity error message context is not null.");
             String errorCode = errorContext.getErrorCode();
             String reason = null;
-            if (errorCode != null) {
+            if (StringUtils.isNotBlank(errorCode)) {
                 String[] errorCodeWithReason = errorCode.split(":", 2);
                 errorCode = errorCodeWithReason[0];
                 if (errorCodeWithReason.length > 1) {
