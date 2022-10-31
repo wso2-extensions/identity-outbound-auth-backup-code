@@ -159,15 +159,6 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
 
         String username = null;
         String tenantDomain = context.getTenantDomain();
-
-        Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
-        boolean showAuthFailureReason = Boolean.parseBoolean(parameterMap.get(
-                FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG));
-        boolean showAuthFailureReasonOnLoginPage = false;
-        if (showAuthFailureReason) {
-            showAuthFailureReasonOnLoginPage = Boolean.parseBoolean(
-                    parameterMap.get(FrameworkConstants.SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE_CONF));
-        }
         context.setProperty(AUTHENTICATION, BACKUP_CODE_AUTHENTICATOR_NAME);
         if (!tenantDomain.equals(SUPER_TENANT_DOMAIN)) {
             IdentityHelperUtil.loadApplicationAuthenticationXMLFromRegistry(context, getName(), tenantDomain);
@@ -201,6 +192,14 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
             String retryParam = StringUtils.EMPTY;
             if (context.isRetrying()) {
                 retryParam = "&authFailure=true&authFailureMsg=login.fail.message";
+            }
+            Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
+            boolean showAuthFailureReason = Boolean.parseBoolean(parameterMap.get(
+                    FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG));
+            boolean showAuthFailureReasonOnLoginPage = false;
+            if (showAuthFailureReason) {
+                showAuthFailureReasonOnLoginPage = Boolean.parseBoolean(
+                        parameterMap.get(FrameworkConstants.SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE_CONF));
             }
             String errorParam = StringUtils.EMPTY;
             if (showAuthFailureReason) {
