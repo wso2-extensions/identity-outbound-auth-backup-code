@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2022, WSO2 Inc. (http://www.wso2.com).
+ * Copyright (c) 2022, WSO2 LLC. (https://www.wso2.org).
  *
- * WSO2 Inc. licenses this file to you under the Apache License,
+ * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,6 +17,8 @@
  */
 package org.wso2.carbon.identity.application.authenticator.backupcode;
 
+import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
+import org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants;
 import org.wso2.carbon.identity.application.authenticator.backupcode.exception.BackupCodeException;
 import org.wso2.carbon.identity.application.authenticator.backupcode.internal.BackupCodeDataHolder;
 import org.wso2.carbon.identity.application.authenticator.backupcode.util.BackupCodeUtil;
@@ -37,12 +39,15 @@ import org.wso2.carbon.identity.application.common.model.IdentityProvider;
 import org.wso2.carbon.identity.application.common.model.JustInTimeProvisioningConfig;
 import org.wso2.carbon.identity.core.ServiceURLBuilder;
 import org.wso2.carbon.identity.core.URLBuilderException;
+import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
+import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.event.IdentityEventConstants;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.event.event.Event;
 import org.wso2.carbon.idp.mgt.IdentityProviderManagementException;
 import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.api.UserStoreManager;
+import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
@@ -64,6 +69,7 @@ import static org.wso2.carbon.identity.application.authenticator.backupcode.cons
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.BACKUP_CODE_AUTHENTICATOR_FRIENDLY_NAME;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.BACKUP_CODE_AUTHENTICATOR_NAME;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.CODE_MISMATCH;
+import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.Claims.ACCOUNT_LOCKED_REASON_CLAIM;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.Claims.BACKUP_CODES_CLAIM;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.BACKUP_CODE;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.Claims.BACKUP_CODE_FAILED_ATTEMPTS_CLAIM;
@@ -115,7 +121,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
     public boolean canHandle(HttpServletRequest httpServletRequest) {
 
         String token = httpServletRequest.getParameter(BACKUP_CODE);
-        return (token != null);
+        return (StringUtils.isNotBlank(token));
     }
 
     /**
@@ -183,9 +189,21 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
             username = UserCoreUtil.addTenantDomainToEntry(authenticatingUser.getUserName(), tenantDomain);
             context.setProperty(AUTHENTICATED_USER, authenticatingUser);
 
-            String retryParam = "";
+            String retryParam = StringUtils.EMPTY;
             if (context.isRetrying()) {
                 retryParam = "&authFailure=true&authFailureMsg=login.fail.message";
+            }
+            Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
+            boolean showAuthFailureReason = Boolean.parseBoolean(parameterMap.get(
+                    FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG));
+            boolean showAuthFailureReasonOnLoginPage = false;
+            if (showAuthFailureReason) {
+                showAuthFailureReasonOnLoginPage = Boolean.parseBoolean(
+                        parameterMap.get(FrameworkConstants.SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE_CONF));
+            }
+            String errorParam = StringUtils.EMPTY;
+            if (showAuthFailureReason) {
+                errorParam = getErrorParamsStringFromErrorContext();
             }
             boolean isBackupCodesExistForUser = false;
 
@@ -208,12 +226,15 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
 
             if (isBackupCodesExistForUser) {
                 // If backup code is enabled for the user.
+                if (!showAuthFailureReasonOnLoginPage) {
+                    errorParam = StringUtils.EMPTY;
+                }
                 String backupCodeLoginPageUrl =
-                        buildBackupCodeLoginPageURL(context, username, retryParam, multiOptionURI);
+                        buildBackupCodeLoginPageURL(context, username, retryParam, errorParam, multiOptionURI);
                 response.sendRedirect(backupCodeLoginPageUrl);
             } else {
                 String backupCodeErrorPageUrl =
-                        buildBackupCodeErrorPageURL(context, username, retryParam, multiOptionURI);
+                        buildBackupCodeErrorPageURL(context, username, retryParam, errorParam, multiOptionURI);
                 response.sendRedirect(backupCodeErrorPageUrl);
             }
         } catch (IOException e) {
@@ -443,14 +464,55 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
     }
 
     private String buildBackupCodeLoginPageURL(AuthenticationContext context, String username, String retryParam,
-                                               String multiOptionURI)
+                                               String errorParam, String multiOptionURI)
             throws AuthenticationFailedException, URISyntaxException, URLBuilderException {
 
         String queryString = "sessionDataKey=" + context.getContextIdentifier() + "&authenticators=" + getName() +
-                "&type=backup-code" + retryParam + "&username=" + username + multiOptionURI;
+                "&type=backup-code" + retryParam + "&username=" + username + errorParam + multiOptionURI;
         String loginPage = FrameworkUtils.appendQueryParamsStringToUrl(BackupCodeUtil.getBackupCodeLoginPage(context),
                 queryString);
         return buildAbsoluteURL(loginPage);
+    }
+
+    private String buildErrorParamString(Map<String, String> paramMap) {
+
+        StringBuilder params = new StringBuilder();
+        for (Map.Entry<String, String> entry : paramMap.entrySet()) {
+            params.append("&").append(entry.getKey()).append("=").append(entry.getValue());
+        }
+        return params.toString();
+    }
+
+    private String getErrorParamsStringFromErrorContext() {
+
+        String errorParam = StringUtils.EMPTY;
+        IdentityErrorMsgContext errorContext = IdentityUtil.getIdentityErrorMsg();
+        IdentityUtil.clearIdentityErrorMsg();
+        if (errorContext != null) {
+            log.debug("Identity error message context is not null.");
+            String errorCode = errorContext.getErrorCode();
+            String reason = null;
+            if (StringUtils.isNotBlank(errorCode)) {
+                String[] errorCodeWithReason = errorCode.split(":", 2);
+                errorCode = errorCodeWithReason[0];
+                if (errorCodeWithReason.length > 1) {
+                    reason = errorCodeWithReason[1];
+                }
+                if (errorCode.equals(UserCoreConstants.ErrorCode.USER_IS_LOCKED)) {
+                    Map<String, String> paramMap = new HashMap<>();
+                    paramMap.put(FrameworkConstants.ERROR_CODE, errorCode);
+                    if (StringUtils.isNotBlank(reason)) {
+                        paramMap.put(FrameworkConstants.LOCK_REASON, reason);
+                    } else if (errorContext.getFailedLoginAttempts() == errorContext.getMaximumLoginAttempts()) {
+                        // The account just got locked because of max attempts reached.
+                        paramMap.put(FrameworkConstants.LOCK_REASON,
+                                BackupCodeAuthenticatorConstants.MAX_ATTEMPTS_EXCEEDED);
+                    }
+                    errorParam = buildErrorParamString(paramMap);
+                }
+            }
+        }
+        return errorParam;
     }
 
     private String buildAbsoluteURL(String redirectUrl) throws URISyntaxException, URLBuilderException {
@@ -464,11 +526,11 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
     }
 
     private String buildBackupCodeErrorPageURL(AuthenticationContext context, String username, String retryParam,
-                                               String multiOptionURI)
+                                               String errorParam, String multiOptionURI)
             throws AuthenticationFailedException, URISyntaxException, URLBuilderException {
 
         String queryString = "sessionDataKey=" + context.getContextIdentifier() + "&authenticators=" + getName() +
-                "&type=backup_code_error" + retryParam + "&username=" + username + multiOptionURI;
+                "&type=backup_code_error" + retryParam + "&username=" + username + errorParam + multiOptionURI;
         String errorPage = FrameworkUtils.appendQueryParamsStringToUrl(BackupCodeUtil.getBackupCodeErrorPage(context),
                 queryString);
         return buildAbsoluteURL(errorPage);
@@ -483,6 +545,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
         String userStoreDomain = UserCoreUtil.extractDomainFromName(username);
         if (isLocalUser &&
                 BackupCodeUtil.isAccountLocked(authenticatedUserObject.getUserName(), tenantDomain, userStoreDomain)) {
+            setErrorContextWhenAccountLocked(username);
             String errorMessage =
                     String.format("Authentication failed since authenticated user: %s, account is locked.",
                             getUserStoreAppendedName(username));
@@ -491,6 +554,27 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
             }
             throw new AuthenticationFailedException(errorMessage);
         }
+    }
+
+    private void setErrorContextWhenAccountLocked(String username) throws AuthenticationFailedException {
+
+        String accountLockedReason = StringUtils.EMPTY;
+        String tenantAwareUsername;
+        try {
+            tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
+            Map<String, String> UserClaimValues = BackupCodeUtil.getUserStoreManagerOfUser(username)
+                    .getUserClaimValues(tenantAwareUsername, new String[]{ACCOUNT_LOCKED_REASON_CLAIM}, null);
+            if (UserClaimValues != null) {
+                accountLockedReason = UserClaimValues.get(ACCOUNT_LOCKED_REASON_CLAIM);
+            }
+        }
+        catch (UserStoreException | BackupCodeException e) {
+            throw new AuthenticationFailedException(
+                    "Could not get the account locked reason. Authentication Failed for user: " + username);
+        }
+        IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(
+                UserCoreConstants.ErrorCode.USER_IS_LOCKED + ":" + accountLockedReason);
+        IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
     }
 
     private boolean isInitialFederationAttempt(AuthenticationContext context) {

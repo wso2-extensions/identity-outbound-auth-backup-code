@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2022, WSO2 LLC. (https://www.wso2.org).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -21,6 +21,7 @@ package org.wso2.carbon.identity.application.authenticator.backupcode;
 import org.apache.axis2.context.ConfigurationContext;
 import org.apache.axis2.engine.AxisConfiguration;
 import org.mockito.Mock;
+import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.api.support.membermodification.MemberMatcher;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -30,25 +31,33 @@ import org.testng.annotations.Test;
 import org.wso2.carbon.extension.identity.helper.FederatedAuthenticatorUtil;
 import org.wso2.carbon.identity.application.authentication.framework.AbstractApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticatorFlowStatus;
+import org.wso2.carbon.identity.application.authentication.framework.config.builder.FileBasedConfigurationBuilder;
+import org.wso2.carbon.identity.application.authentication.framework.config.model.AuthenticatorConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
+import org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants;
 import org.wso2.carbon.identity.application.authenticator.backupcode.exception.BackupCodeException;
 import org.wso2.carbon.identity.application.authenticator.backupcode.internal.BackupCodeDataHolder;
 import org.wso2.carbon.identity.application.authenticator.backupcode.util.BackupCodeUtil;
 import org.wso2.carbon.identity.application.common.model.IdentityProvider;
 import org.wso2.carbon.identity.application.common.model.JustInTimeProvisioningConfig;
 import org.wso2.carbon.identity.core.internal.IdentityCoreServiceComponent;
+import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
+import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.event.services.IdentityEventService;
 import org.wso2.carbon.idp.mgt.IdentityProviderManagementException;
 import org.wso2.carbon.idp.mgt.IdpManager;
 import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.api.UserStoreManager;
+import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.utils.CarbonUtils;
 import org.wso2.carbon.utils.ConfigurationContextService;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -59,6 +68,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
@@ -73,6 +83,7 @@ import static org.wso2.carbon.identity.application.authenticator.backupcode.cons
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.IS_INITIAL_FEDERATED_USER_ATTEMPT;
 
 @PrepareForTest({BackupCodeAuthenticator.class, BackupCodeUtil.class, BackupCodeDataHolder.class,
+        FileBasedConfigurationBuilder.class, IdentityUtil.class,
         FederatedAuthenticatorUtil.class, IdentityCoreServiceComponent.class, CarbonUtils.class})
 public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
 
@@ -111,12 +122,17 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
 
     @Mock
     AxisConfiguration mockAxisConfiguration;
+
+    @Mock
+    FileBasedConfigurationBuilder fileBasedConfigurationBuilder;
+
     private static final String VALID_TOKEN = "234561";
     private static final String INVALID_TOKEN = "123456";
     private static final String FULL_QUALIFIED_USERNAME = "TEST-DOMAIN/test@gmail.com@carbon.super";
     private static final String HASHED_BACKUP_CODES =
             "2d578fa2a67a4e24933164a78752f9ea60cdbcbcb683637b582595e49d19a305,2dc0269fa54d269a87536810ec453cb095b4b92f45e63826a21dff1c2e76f169";
     private static final String TENANT_DOMAIN = "carbon.super";
+    private String redirect;
 
     @Test(dataProvider = "canHandleData")
     public void testCanHandle(String backupCode, boolean expectedValue) {
@@ -207,12 +223,17 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
                             boolean expectError) throws BackupCodeException, UserStoreException {
 
         BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
+        Map<String, String> parameterMap = new HashMap<>();
+        parameterMap.put(FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG, String.valueOf(false));
+        AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig(
+                BackupCodeAuthenticatorConstants.BACKUP_CODE_AUTHENTICATOR_NAME, true, parameterMap);
         try {
             mockStatic(BackupCodeUtil.class);
             mockStatic(FederatedAuthenticatorUtil.class);
             mockStatic(BackupCodeDataHolder.class);
             mockStatic(IdentityCoreServiceComponent.class);
             mockStatic(CarbonUtils.class);
+            mockStatic(FileBasedConfigurationBuilder.class);
             when(mockAuthenticationContext.isLogoutRequest()).thenReturn(isLogoutRequest);
             when(mockAuthenticationContext.getTenantDomain()).thenReturn(TENANT_DOMAIN);
             when(mockAuthenticationContext.getProperty(AUTHENTICATION)).thenReturn(authenticatorName);
@@ -245,7 +266,9 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
             when(CarbonUtils.getTransportProxyPort((AxisConfiguration) anyObject(), anyString())).thenReturn(9443);
             when(FederatedAuthenticatorUtil.getLocalUsernameAssociatedWithFederatedUser(anyString(), any())).thenReturn(
                     username);
-            suppress(MemberMatcher.methodsDeclaredIn(AbstractApplicationAuthenticator.class));
+            when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+            when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+
             AuthenticatorFlowStatus flowStatus =
                     backupCodeAuthenticator.process(mockHttpServletRequest, mocHttpServletResponse,
                             mockAuthenticationContext);
@@ -283,6 +306,84 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
                         AuthenticatorFlowStatus.INCOMPLETE, false},
                 {false, null, "backup-code-authenticator", false, "test@gmail.com", false, new HashMap<>(), true, true,
                         AuthenticatorFlowStatus.INCOMPLETE, false}
+        };
+    }
+
+    @Test(dataProvider = "initiateAuthenticationRequestWithErrorContextData")
+    public void testInitiateAuthenticationRequestWithErrorContext(boolean showError, boolean showErrorOnLoginPage,
+                                                                  boolean errorContextPresent, int failedAttempts,
+                                                                  int maxAttempts, String lockedReason,
+                                                                  boolean hasErrorCode, String errorCodeParam,
+                                                                  boolean hasLockedReason, String lockedReasonParam)
+            throws AuthenticationFailedException, BackupCodeException, UserStoreException, IOException {
+
+        String username = "TEST-DOMAIN/test@gmail.com";
+        Map<String, String> claims = new HashMap<>();
+        claims.put(BACKUP_CODES_CLAIM, HASHED_BACKUP_CODES);
+
+        BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
+        Map<String, String> parameterMap = new HashMap<>();
+        parameterMap.put(FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG, String.valueOf(showError));
+        parameterMap.put(FrameworkConstants.SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE_CONF,
+                String.valueOf(showErrorOnLoginPage));
+        AuthenticatorConfig authenticatorConfig1 = new AuthenticatorConfig(
+                BackupCodeAuthenticatorConstants.BACKUP_CODE_AUTHENTICATOR_NAME, true, parameterMap);
+        IdentityErrorMsgContext customErrorMessageContext = null;
+        if (errorContextPresent) {
+            customErrorMessageContext = new IdentityErrorMsgContext(
+                    UserCoreConstants.ErrorCode.USER_IS_LOCKED + ":" + lockedReason,
+                    failedAttempts, maxAttempts);
+        }
+
+        mockStatic(FileBasedConfigurationBuilder.class);
+        mockStatic(BackupCodeUtil.class);
+        mockStatic(FederatedAuthenticatorUtil.class);
+        mockStatic(IdentityUtil.class);
+        when(BackupCodeUtil.getUserStoreManagerOfUser(anyString())).thenReturn(mockUserStoreManager);
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig1);
+        when(mockAuthenticationContext.getTenantDomain()).thenReturn(TENANT_DOMAIN);
+        when(BackupCodeUtil.getAuthenticatedUser(any())).thenReturn(mockAuthenticatedUser);
+        when(mockAuthenticatedUser.getUserName()).thenReturn(username);
+        when(mockUserStoreManager.getUserClaimValues(anyString(), anyObject(), anyString())).thenReturn(claims);
+        when(IdentityUtil.getIdentityErrorMsg()).thenReturn(customErrorMessageContext);
+        when(mockAuthenticatedUser.isFederatedUser()).thenReturn(false);
+        when(BackupCodeUtil.getBackupCodeLoginPage(anyObject())).thenReturn(
+                "https://localhost:9443/authenticationendpoint/backup_code.do");
+        when(BackupCodeUtil.getBackupCodeErrorPage(anyObject())).thenReturn(
+                "https://localhost:9443/authenticationendpoint/backup_code_error.do");
+        doAnswer((Answer<Object>) invocation -> {
+
+            redirect = (String) invocation.getArguments()[0];
+            return null;
+        }).when(mocHttpServletResponse).sendRedirect(anyString());
+
+        backupCodeAuthenticator.initiateAuthenticationRequest(mockHttpServletRequest, mocHttpServletResponse,
+                mockAuthenticationContext);
+
+        assertFalse(hasErrorCode ^ redirect.contains(errorCodeParam));
+        assertFalse(hasLockedReason ^ redirect.contains(lockedReasonParam));
+    }
+
+    @DataProvider(name="initiateAuthenticationRequestWithErrorContextData")
+    public Object[][] DataForInitiateAuthenticationRequestWithErrorContext() {
+
+        String maxAttemptsExceeded = BackupCodeAuthenticatorConstants.MAX_ATTEMPTS_EXCEEDED;
+        String adminLocked = BackupCodeAuthenticatorConstants.ADMIN_INITIATED;
+        String lockedErrorCode = UserCoreConstants.ErrorCode.USER_IS_LOCKED;
+
+        return new Object[][]{
+                {true, true, true, 3, 3, "", true, "&errorCode=" + lockedErrorCode, true,
+                        "&lockedReason=" + maxAttemptsExceeded},
+                {false, true, true, 3, 3, "", false, "errorCode", false, "lockedReason"},
+                {true, true, true, 0, 0, maxAttemptsExceeded, true, "&errorCode=" + lockedErrorCode, true,
+                        "&lockedReason=" + maxAttemptsExceeded},
+                {true, true, true, 0, 0, adminLocked, true, "&errorCode=" + lockedErrorCode, true,
+                        "&lockedReason=" + adminLocked},
+                {true, true, true, 0, 0, "", true, "&errorCode=" + lockedErrorCode, true,
+                        "&lockedReason=" + maxAttemptsExceeded},
+                {true, false, true, 3, 3, "", false, "errorCode", false, "lockedReason"},
+                {true, true, false, 3, 3, "", false, "errorCode", false, "lockedReason"}
         };
     }
 }
