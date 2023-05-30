@@ -158,7 +158,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
                                                  AuthenticationContext context) throws AuthenticationFailedException {
 
         String username = null;
-        String tenantDomain = context.getTenantDomain();
+        String tenantDomain = context.getLoginTenantDomain();
         context.setProperty(AUTHENTICATION, BACKUP_CODE_AUTHENTICATOR_NAME);
         if (!tenantDomain.equals(SUPER_TENANT_DOMAIN)) {
             IdentityHelperUtil.loadApplicationAuthenticationXMLFromRegistry(context, getName(), tenantDomain);

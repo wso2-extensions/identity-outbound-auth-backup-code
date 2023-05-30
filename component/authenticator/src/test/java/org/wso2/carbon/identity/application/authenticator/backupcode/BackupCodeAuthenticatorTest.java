@@ -235,7 +235,7 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
             mockStatic(CarbonUtils.class);
             mockStatic(FileBasedConfigurationBuilder.class);
             when(mockAuthenticationContext.isLogoutRequest()).thenReturn(isLogoutRequest);
-            when(mockAuthenticationContext.getTenantDomain()).thenReturn(TENANT_DOMAIN);
+            when(mockAuthenticationContext.getLoginTenantDomain()).thenReturn(TENANT_DOMAIN);
             when(mockAuthenticationContext.getProperty(AUTHENTICATION)).thenReturn(authenticatorName);
             when(mockAuthenticationContext.isRetrying()).thenReturn(isRetrying);
             when(mockHttpServletRequest.getParameter(BACKUP_CODE)).thenReturn(backupCode);
@@ -342,7 +342,7 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
         when(BackupCodeUtil.getUserStoreManagerOfUser(anyString())).thenReturn(mockUserStoreManager);
         when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
         when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig1);
-        when(mockAuthenticationContext.getTenantDomain()).thenReturn(TENANT_DOMAIN);
+        when(mockAuthenticationContext.getLoginTenantDomain()).thenReturn(TENANT_DOMAIN);
         when(BackupCodeUtil.getAuthenticatedUser(any())).thenReturn(mockAuthenticatedUser);
         when(mockAuthenticatedUser.getUserName()).thenReturn(username);
         when(mockUserStoreManager.getUserClaimValues(anyString(), anyObject(), anyString())).thenReturn(claims);
