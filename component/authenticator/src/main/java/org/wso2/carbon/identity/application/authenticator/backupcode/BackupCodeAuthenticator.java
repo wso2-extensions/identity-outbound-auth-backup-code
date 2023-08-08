@@ -17,6 +17,7 @@
  */
 package org.wso2.carbon.identity.application.authenticator.backupcode;
 
+import org.wso2.carbon.identity.application.authentication.framework.exception.UserIdNotFoundException;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants;
 import org.wso2.carbon.identity.application.authenticator.backupcode.exception.BackupCodeException;
@@ -37,6 +38,8 @@ import org.wso2.carbon.identity.application.authentication.framework.model.Authe
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.common.model.IdentityProvider;
 import org.wso2.carbon.identity.application.common.model.JustInTimeProvisioningConfig;
+import org.wso2.carbon.identity.central.log.mgt.utils.LogConstants;
+import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.core.ServiceURLBuilder;
 import org.wso2.carbon.identity.core.URLBuilderException;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
@@ -49,6 +52,7 @@ import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.api.UserStoreManager;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
+import org.wso2.carbon.utils.DiagnosticLog;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.io.IOException;
@@ -59,6 +63,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -82,6 +87,9 @@ import static org.wso2.carbon.identity.application.authenticator.backupcode.cons
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.ErrorMessages.ERROR_NO_FEDERATED_USER;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.ErrorMessages.ERROR_GETTING_THE_USER_STORE_MANAGER;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.IS_INITIAL_FEDERATED_USER_ATTEMPT;
+import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
+import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.LogConstants.ActionIDs.VALIDATE_BACKUP_CODE_REQUEST;
+import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.LogConstants.BACKUP_CODE_AUTH_SERVICE;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.SUPER_TENANT_DOMAIN;
 import static org.wso2.carbon.identity.event.IdentityEventConstants.Event.POST_NON_BASIC_AUTHENTICATION;
 import static org.wso2.carbon.identity.event.IdentityEventConstants.EventProperty.AUTHENTICATOR_NAME;
@@ -121,7 +129,16 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
     public boolean canHandle(HttpServletRequest httpServletRequest) {
 
         String token = httpServletRequest.getParameter(BACKUP_CODE);
-        return (StringUtils.isNotBlank(token));
+        boolean canHandle = StringUtils.isNotBlank(token);
+        if (canHandle && LoggerUtils.isDiagnosticLogsEnabled()) {
+            DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                    BACKUP_CODE_AUTH_SERVICE, FrameworkConstants.LogConstants.ActionIDs.HANDLE_AUTH_STEP);
+            diagnosticLogBuilder.resultMessage("Backup-code authenticator handling the authentication.")
+                    .logDetailLevel(DiagnosticLog.LogDetailLevel.INTERNAL_SYSTEM)
+                    .resultStatus(DiagnosticLog.ResultStatus.SUCCESS);
+            LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+        }
+        return canHandle;
     }
 
     /**
@@ -157,6 +174,16 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
     protected void initiateAuthenticationRequest(HttpServletRequest request, HttpServletResponse response,
                                                  AuthenticationContext context) throws AuthenticationFailedException {
 
+        if (LoggerUtils.isDiagnosticLogsEnabled()) {
+            DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                    BACKUP_CODE_AUTH_SERVICE, VALIDATE_BACKUP_CODE_REQUEST);
+            diagnosticLogBuilder.resultMessage("Validate backup code authentication request.")
+                    .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                    .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
+                    .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
+                    .inputParams(getApplicationDetails(context));
+            LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+        }
         String username = null;
         String tenantDomain = context.getLoginTenantDomain();
         context.setProperty(AUTHENTICATION, BACKUP_CODE_AUTHENTICATOR_NAME);
@@ -223,7 +250,16 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
              * authentication option from backup code pages.
              */
             String multiOptionURI = BackupCodeUtil.getMultiOptionURIQueryParam(request);
-
+            DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = null;
+            if (LoggerUtils.isDiagnosticLogsEnabled()) {
+                diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(BACKUP_CODE_AUTH_SERVICE,
+                        VALIDATE_BACKUP_CODE_REQUEST);
+                diagnosticLogBuilder.inputParams(getApplicationDetails(context))
+                        .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                        .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
+                        .inputParam("backup code exists for user", isBackupCodesExistForUser);
+                addUserDetailsToDiagnosticLog(diagnosticLogBuilder, authenticatingUser);
+            }
             if (isBackupCodesExistForUser) {
                 // If backup code is enabled for the user.
                 if (!showAuthFailureReasonOnLoginPage) {
@@ -232,10 +268,21 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
                 String backupCodeLoginPageUrl =
                         buildBackupCodeLoginPageURL(context, username, retryParam, errorParam, multiOptionURI);
                 response.sendRedirect(backupCodeLoginPageUrl);
+                if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                    diagnosticLogBuilder.resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
+                            .resultMessage("Redirecting to backup code login page.")
+                            .resultStatus(DiagnosticLog.ResultStatus.SUCCESS);
+                    LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+                }
             } else {
                 String backupCodeErrorPageUrl =
                         buildBackupCodeErrorPageURL(context, username, retryParam, errorParam, multiOptionURI);
                 response.sendRedirect(backupCodeErrorPageUrl);
+                if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                    diagnosticLogBuilder.resultStatus(DiagnosticLog.ResultStatus.FAILED)
+                            .resultMessage("Redirecting to backup code error page.");
+                    LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+                }
             }
         } catch (IOException e) {
             throw new AuthenticationFailedException(
@@ -257,6 +304,17 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
 
         String token = request.getParameter(BACKUP_CODE);
         AuthenticatedUser authenticatingUser = (AuthenticatedUser) context.getProperty(AUTHENTICATED_USER);
+        if (LoggerUtils.isDiagnosticLogsEnabled()) {
+            DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                    BACKUP_CODE_AUTH_SERVICE, PROCESS_AUTHENTICATION_RESPONSE);
+            diagnosticLogBuilder.resultMessage("Processing backup code authentication response.")
+                    .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                    .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
+                    .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
+                    .inputParams(getApplicationDetails(context));
+            addUserDetailsToDiagnosticLog(diagnosticLogBuilder, authenticatingUser);
+            LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+        }
 
         String username = authenticatingUser.toFullQualifiedUsername();
         validateAccountLockStatusForLocalUser(context, username);
@@ -308,6 +366,17 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
             resetBackupCodeFailedAttempts(authenticatingUser);
         } catch (BackupCodeException e) {
             throw new AuthenticationFailedException("Error occurred while resetting account lock claim");
+        }
+        if (LoggerUtils.isDiagnosticLogsEnabled()) {
+            DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                    BACKUP_CODE_AUTH_SERVICE, PROCESS_AUTHENTICATION_RESPONSE);
+            diagnosticLogBuilder.resultMessage("Backup code authentication successful.")
+                    .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                    .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
+                    .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
+                    .inputParams(getApplicationDetails(context));
+            addUserDetailsToDiagnosticLog(diagnosticLogBuilder, authenticatingUser);
+            LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
         }
     }
 
@@ -743,6 +812,59 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
         } catch (IdentityEventException e) {
             throw new BackupCodeException(ERROR_TRIGGERING_EVENT.getCode(),
                     String.format(ERROR_TRIGGERING_EVENT.getMessage(), eventName, user.getUserName()), e);
+        }
+    }
+
+    /** Add application details to a map.
+     *
+     * @param context AuthenticationContext.
+     * @return Map with application details.
+     */
+    private Map<String, String> getApplicationDetails(AuthenticationContext context) {
+
+        Map<String, String> applicationDetailsMap = new HashMap<>();
+        FrameworkUtils.getApplicationResourceId(context).ifPresent(applicationId ->
+                applicationDetailsMap.put(LogConstants.InputKeys.APPLICATION_ID, applicationId));
+        FrameworkUtils.getApplicationName(context).ifPresent(applicationName ->
+                applicationDetailsMap.put(LogConstants.InputKeys.APPLICATION_NAME,
+                        applicationName));
+        return applicationDetailsMap;
+    }
+
+    /**
+     * Get the user id from the authenticated user.
+     *
+     * @param authenticatedUser AuthenticationContext.
+     * @return User id.
+     */
+    private Optional<String> getUserId(AuthenticatedUser authenticatedUser) {
+
+        if (authenticatedUser == null) {
+            return Optional.empty();
+        }
+        try {
+            if (authenticatedUser.getUserId() != null) {
+                return Optional.ofNullable(authenticatedUser.getUserId());
+            }
+        } catch (UserIdNotFoundException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("Error while getting the user id from the authenticated user.", e);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private void addUserDetailsToDiagnosticLog(DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder,
+                                               AuthenticatedUser user) {
+
+        if (user != null) {
+            diagnosticLogBuilder.inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
+                            LoggerUtils.getMaskedContent(user.getUserName()) :
+                            user.getUserName())
+                    .inputParam("user store domain", user.getUserStoreDomain());
+            Optional<String> optionalUserId = getUserId(user);
+            optionalUserId.ifPresent(userId -> diagnosticLogBuilder.inputParam(LogConstants.InputKeys.USER_ID,
+                    userId));
         }
     }
 }

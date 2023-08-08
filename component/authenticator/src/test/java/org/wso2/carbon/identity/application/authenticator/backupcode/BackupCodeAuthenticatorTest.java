@@ -23,19 +23,19 @@ import org.apache.axis2.engine.AxisConfiguration;
 import org.mockito.Mock;
 import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
-import org.powermock.api.support.membermodification.MemberMatcher;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.testng.PowerMockTestCase;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.wso2.carbon.extension.identity.helper.FederatedAuthenticatorUtil;
-import org.wso2.carbon.identity.application.authentication.framework.AbstractApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticatorFlowStatus;
 import org.wso2.carbon.identity.application.authentication.framework.config.builder.FileBasedConfigurationBuilder;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.AuthenticatorConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
+import org.wso2.carbon.identity.application.authentication.framework.exception.UserIdNotFoundException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants;
@@ -44,6 +44,7 @@ import org.wso2.carbon.identity.application.authenticator.backupcode.internal.Ba
 import org.wso2.carbon.identity.application.authenticator.backupcode.util.BackupCodeUtil;
 import org.wso2.carbon.identity.application.common.model.IdentityProvider;
 import org.wso2.carbon.identity.application.common.model.JustInTimeProvisioningConfig;
+import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.core.internal.IdentityCoreServiceComponent;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
@@ -60,6 +61,7 @@ import org.wso2.carbon.utils.ConfigurationContextService;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -69,10 +71,9 @@ import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.powermock.api.support.membermodification.MemberModifier.suppress;
+import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
@@ -84,7 +85,7 @@ import static org.wso2.carbon.identity.application.authenticator.backupcode.cons
 
 @PrepareForTest({BackupCodeAuthenticator.class, BackupCodeUtil.class, BackupCodeDataHolder.class,
         FileBasedConfigurationBuilder.class, IdentityUtil.class,
-        FederatedAuthenticatorUtil.class, IdentityCoreServiceComponent.class, CarbonUtils.class})
+        FederatedAuthenticatorUtil.class, IdentityCoreServiceComponent.class, CarbonUtils.class, LoggerUtils.class})
 public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
 
     @Mock
@@ -129,10 +130,19 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
     private static final String VALID_TOKEN = "234561";
     private static final String INVALID_TOKEN = "123456";
     private static final String FULL_QUALIFIED_USERNAME = "TEST-DOMAIN/test@gmail.com@carbon.super";
+    private static final String USERNAME = "test@gmail.com";
+    private static final String USER_ID = UUID.randomUUID().toString();
     private static final String HASHED_BACKUP_CODES =
             "2d578fa2a67a4e24933164a78752f9ea60cdbcbcb683637b582595e49d19a305,2dc0269fa54d269a87536810ec453cb095b4b92f45e63826a21dff1c2e76f169";
     private static final String TENANT_DOMAIN = "carbon.super";
     private String redirect;
+
+    @BeforeMethod
+    public void setUp() {
+
+        mockStatic(LoggerUtils.class);
+        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(true);
+    }
 
     @Test(dataProvider = "canHandleData")
     public void testCanHandle(String backupCode, boolean expectedValue) {
@@ -163,16 +173,19 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
     }
 
     @Test(dataProvider = "processAuthenticationResponseData")
-    public void testProcessAuthenticationResponse(String token, String fullyQualifiedUserName, boolean isLocalUser,
-                                                  boolean isAccountLock, boolean isInitialFedAttempt,
-                                                  Map<String, String> claims, boolean expectError)
-            throws IdentityEventException, UserStoreException {
+    public void testProcessAuthenticationResponse(String token, String fullyQualifiedUserName, String username,
+                                                  String userId, boolean isLocalUser, boolean isAccountLock,
+                                                  boolean isInitialFedAttempt, Map<String, String> claims,
+                                                  boolean expectError)
+            throws IdentityEventException, UserStoreException, UserIdNotFoundException {
 
         mockStatic(BackupCodeUtil.class, CALLS_REAL_METHODS);
         mockStatic(BackupCodeDataHolder.class);
         when(mockHttpServletRequest.getParameter(BACKUP_CODE)).thenReturn(token);
         when(mockAuthenticationContext.getProperty(AUTHENTICATED_USER)).thenReturn(mockAuthenticatedUser);
         when(mockAuthenticatedUser.toFullQualifiedUsername()).thenReturn(fullyQualifiedUserName);
+        when(mockAuthenticatedUser.getUserName()).thenReturn(username);
+        when(mockAuthenticatedUser.getUserId()).thenReturn(userId);
         try {
             PowerMockito.doReturn(isLocalUser).when(BackupCodeUtil.class, "isLocalUser", mockAuthenticationContext);
             PowerMockito.doReturn(isAccountLock)
@@ -208,12 +221,12 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
 
         Map<String, String> claims = new HashMap<>();
         claims.put(BACKUP_CODES_CLAIM, HASHED_BACKUP_CODES);
-        return new Object[][]{{VALID_TOKEN, FULL_QUALIFIED_USERNAME, true, false, false, claims, false},
-                {INVALID_TOKEN, FULL_QUALIFIED_USERNAME, true, false, false, claims, true},
-                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, false, false, true, claims, false},
-                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, true, true, false, claims, true},
-                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, true, false, false, new HashMap<>(), true},
-                {"", FULL_QUALIFIED_USERNAME, true, false, false, new HashMap<>(), true}};
+        return new Object[][]{{VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, null, true, false, false, claims, false},
+                {INVALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, true, false, false, claims, true},
+                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, false, false, true, claims, false},
+                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, true, true, false, claims, true},
+                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, true, false, false, new HashMap<>(), true},
+                {"", FULL_QUALIFIED_USERNAME, USERNAME, null, true, false, false, new HashMap<>(), true}};
     }
 
     @Test(dataProvider = "processData")
