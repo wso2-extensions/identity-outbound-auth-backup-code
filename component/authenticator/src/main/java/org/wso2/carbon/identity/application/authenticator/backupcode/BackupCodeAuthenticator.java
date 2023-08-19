@@ -268,7 +268,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
                 String backupCodeLoginPageUrl =
                         buildBackupCodeLoginPageURL(context, username, retryParam, errorParam, multiOptionURI);
                 response.sendRedirect(backupCodeLoginPageUrl);
-                if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                if (diagnosticLogBuilder != null) {
                     diagnosticLogBuilder.resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
                             .resultMessage("Redirecting to backup code login page.")
                             .resultStatus(DiagnosticLog.ResultStatus.SUCCESS);
@@ -278,7 +278,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
                 String backupCodeErrorPageUrl =
                         buildBackupCodeErrorPageURL(context, username, retryParam, errorParam, multiOptionURI);
                 response.sendRedirect(backupCodeErrorPageUrl);
-                if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                if (diagnosticLogBuilder != null) {
                     diagnosticLogBuilder.resultStatus(DiagnosticLog.ResultStatus.FAILED)
                             .resultMessage("Redirecting to backup code error page.");
                     LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
