@@ -64,7 +64,7 @@ public class BackupCodeAuthenticatorConstants {
         public static class ActionIDs {
 
             public static final String PROCESS_AUTHENTICATION_RESPONSE = "process-backupcode-authentication-response";
-            public static final String VALIDATE_BACKUP_CODE_REQUEST = "validate-backupcode-authentication-request";
+            public static final String INITIATE_BACKUP_CODE_REQUEST = "initiate-backupcode-authentication-request";
         }
     }
 

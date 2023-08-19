@@ -87,8 +87,8 @@ import static org.wso2.carbon.identity.application.authenticator.backupcode.cons
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.ErrorMessages.ERROR_NO_FEDERATED_USER;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.ErrorMessages.ERROR_GETTING_THE_USER_STORE_MANAGER;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.IS_INITIAL_FEDERATED_USER_ATTEMPT;
+import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.LogConstants.ActionIDs.INITIATE_BACKUP_CODE_REQUEST;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
-import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.LogConstants.ActionIDs.VALIDATE_BACKUP_CODE_REQUEST;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.LogConstants.BACKUP_CODE_AUTH_SERVICE;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.SUPER_TENANT_DOMAIN;
 import static org.wso2.carbon.identity.event.IdentityEventConstants.Event.POST_NON_BASIC_AUTHENTICATION;
@@ -176,8 +176,8 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
 
         if (LoggerUtils.isDiagnosticLogsEnabled()) {
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
-                    BACKUP_CODE_AUTH_SERVICE, VALIDATE_BACKUP_CODE_REQUEST);
-            diagnosticLogBuilder.resultMessage("Validate backup code authentication request.")
+                    BACKUP_CODE_AUTH_SERVICE, INITIATE_BACKUP_CODE_REQUEST);
+            diagnosticLogBuilder.resultMessage("Initiate backup code authentication request.")
                     .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
                     .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
                     .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
@@ -253,7 +253,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = null;
             if (LoggerUtils.isDiagnosticLogsEnabled()) {
                 diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(BACKUP_CODE_AUTH_SERVICE,
-                        VALIDATE_BACKUP_CODE_REQUEST);
+                        INITIATE_BACKUP_CODE_REQUEST);
                 diagnosticLogBuilder.inputParams(getApplicationDetails(context))
                         .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
                         .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
@@ -815,7 +815,8 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
         }
     }
 
-    /** Add application details to a map.
+    /**
+     * Add application details to a map.
      *
      * @param context AuthenticationContext.
      * @return Map with application details.
@@ -847,9 +848,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
                 return Optional.ofNullable(authenticatedUser.getUserId());
             }
         } catch (UserIdNotFoundException e) {
-            if (log.isDebugEnabled()) {
                 log.debug("Error while getting the user id from the authenticated user.", e);
-            }
         }
         return Optional.empty();
     }
