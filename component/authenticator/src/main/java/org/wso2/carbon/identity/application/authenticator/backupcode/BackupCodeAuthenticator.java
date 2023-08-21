@@ -848,7 +848,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
                 return Optional.ofNullable(authenticatedUser.getUserId());
             }
         } catch (UserIdNotFoundException e) {
-                log.debug("Error while getting the user id from the authenticated user.", e);
+            log.debug("Error while getting the user id from the authenticated user.", e);
         }
         return Optional.empty();
     }

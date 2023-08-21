@@ -145,9 +145,21 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
     }
 
     @Test(dataProvider = "canHandleData")
-    public void testCanHandle(String backupCode, boolean expectedValue, boolean isDiagnosticLogsEnabled) {
+    public void testCanHandleWithDiagnosticLog(String backupCode, boolean expectedValue) {
 
-        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(isDiagnosticLogsEnabled);
+        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(true);
+        testCanHandle(backupCode, expectedValue);
+    }
+
+    @Test(dataProvider = "canHandleData")
+    public void testCanHandleWithoutDiagnosticLog(String backupCode, boolean expectedValue) {
+
+        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(false);
+        testCanHandle(backupCode, expectedValue);
+    }
+
+    private void testCanHandle(String backupCode, boolean expectedValue) {
+
         BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
         when(mockHttpServletRequest.getParameter("BackupCode")).thenReturn(backupCode);
         assertEquals(expectedValue, backupCodeAuthenticator.canHandle(mockHttpServletRequest));
@@ -156,7 +168,7 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
     @DataProvider(name = "canHandleData")
     public Object[][] dataForCanHandle() {
 
-        return addDiagnosticLogStatusToExistingDataProvider(new Object[][]{{"123567", true}, {null, false}});
+        return new Object[][]{{"123567", true}, {null, false}};
     }
 
     @Test
@@ -174,13 +186,35 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
     }
 
     @Test(dataProvider = "processAuthenticationResponseData")
-    public void testProcessAuthenticationResponse(String token, String fullyQualifiedUserName, String username,
-                                                  String userId, boolean isLocalUser, boolean isAccountLock,
-                                                  boolean isInitialFedAttempt, Map<String, String> claims,
-                                                  boolean expectError, boolean isDiagnosticLogsEnabled)
+    public void testProcessAuthResponseWithDiagnosticLog(String token, String fullyQualifiedUserName,
+                                                         String username, String userId, boolean isLocalUser,
+                                                         boolean isAccountLock, boolean isInitialFedAttempt,
+                                                         Map<String, String> claims, boolean expectError)
             throws IdentityEventException, UserStoreException, UserIdNotFoundException {
 
-        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(isDiagnosticLogsEnabled);
+        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(true);
+        testProcessAuthenticationResponse(token, fullyQualifiedUserName, username, userId, isLocalUser, isAccountLock,
+                isInitialFedAttempt, claims, expectError);
+    }
+
+    @Test(dataProvider = "processAuthenticationResponseData")
+    public void testProcessAuthResponseWithoutDiagnosticLog(String token, String fullyQualifiedUserName,
+                                                            String username, String userId, boolean isLocalUser,
+                                                            boolean isAccountLock, boolean isInitialFedAttempt,
+                                                            Map<String, String> claims, boolean expectError)
+            throws IdentityEventException, UserStoreException, UserIdNotFoundException {
+
+        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(false);
+        testProcessAuthenticationResponse(token, fullyQualifiedUserName, username, userId, isLocalUser, isAccountLock,
+                isInitialFedAttempt, claims, expectError);
+    }
+
+    private void testProcessAuthenticationResponse(String token, String fullyQualifiedUserName, String username,
+                                                  String userId, boolean isLocalUser, boolean isAccountLock,
+                                                  boolean isInitialFedAttempt, Map<String, String> claims,
+                                                  boolean expectError)
+            throws IdentityEventException, UserStoreException, UserIdNotFoundException {
+
         mockStatic(BackupCodeUtil.class, CALLS_REAL_METHODS);
         mockStatic(BackupCodeDataHolder.class);
         when(mockHttpServletRequest.getParameter(BACKUP_CODE)).thenReturn(token);
@@ -223,23 +257,42 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
 
         Map<String, String> claims = new HashMap<>();
         claims.put(BACKUP_CODES_CLAIM, HASHED_BACKUP_CODES);
-        return addDiagnosticLogStatusToExistingDataProvider(new Object[][]{
+        return new Object[][]{
                 {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, null, true, false, false, claims, false},
                 {INVALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, true, false, false, claims, true},
                 {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, false, false, true, claims, false},
                 {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, true, true, false, claims, true},
                 {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, true, false, false, new HashMap<>(), true},
-                {"", FULL_QUALIFIED_USERNAME, USERNAME, null, true, false, false, new HashMap<>(), true}});
+                {"", FULL_QUALIFIED_USERNAME, USERNAME, null, true, false, false, new HashMap<>(), true}};
     }
 
     @Test(dataProvider = "processData")
-    public void testProcess(boolean isLogoutRequest, String backupCode, String authenticatorName, boolean isFedUser,
+    public void testProcessWithDiagnosticLog(boolean isLogoutRequest, String backupCode, String authenticatorName,
+                                             boolean isFedUser, String username, boolean isProvisioningEnabled,
+                                             Map<String, String> claims, boolean authenticatedUserInContext,
+                                             boolean isRetrying, Object expectedFlowStatus, boolean expectError)
+            throws BackupCodeException, UserStoreException {
+        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(true);
+        testProcess(isLogoutRequest, backupCode, authenticatorName, isFedUser, username, isProvisioningEnabled, claims,
+                authenticatedUserInContext, isRetrying, expectedFlowStatus, expectError);
+    }
+
+    @Test(dataProvider = "processData")
+    public void testProcessWithOutDiagnosticLog(boolean isLogoutRequest, String backupCode, String authenticatorName,
+                                                boolean isFedUser, String username, boolean isProvisioningEnabled,
+                                                Map<String, String> claims, boolean authenticatedUserInContext,
+                                                boolean isRetrying, Object expectedFlowStatus, boolean expectError)
+            throws BackupCodeException, UserStoreException {
+        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(false);
+        testProcess(isLogoutRequest, backupCode, authenticatorName, isFedUser, username, isProvisioningEnabled, claims,
+                authenticatedUserInContext, isRetrying, expectedFlowStatus, expectError);
+    }
+
+    private void testProcess(boolean isLogoutRequest, String backupCode, String authenticatorName, boolean isFedUser,
                             String username, boolean isProvisioningEnabled, Map<String, String> claims,
                             boolean authenticatedUserInContext, boolean isRetrying, Object expectedFlowStatus,
-                            boolean expectError, boolean isDiagnosticLogEnabled) throws BackupCodeException,
-            UserStoreException {
+                            boolean expectError) throws BackupCodeException, UserStoreException {
 
-        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(isDiagnosticLogEnabled);
         BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
         Map<String, String> parameterMap = new HashMap<>();
         parameterMap.put(FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG, String.valueOf(false));
@@ -305,7 +358,7 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
 
         Map<String, String> claims = new HashMap<>();
         claims.put(BACKUP_CODES_CLAIM, HASHED_BACKUP_CODES);
-        return addDiagnosticLogStatusToExistingDataProvider(new Object[][]{
+        return new Object[][]{
                 {false, null, "backup-code-authenticator", false, "test@gmail.com", false, claims, true, false,
                         AuthenticatorFlowStatus.INCOMPLETE, false},
                 {true, VALID_TOKEN, "backup-code-authenticator", false, "test@gmail.com", false, claims, true, false,
@@ -324,19 +377,44 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
                         AuthenticatorFlowStatus.INCOMPLETE, false},
                 {false, null, "backup-code-authenticator", false, "test@gmail.com", false, new HashMap<>(), true, true,
                         AuthenticatorFlowStatus.INCOMPLETE, false}
-        });
+        };
     }
 
     @Test(dataProvider = "initiateAuthenticationRequestWithErrorContextData")
-    public void testInitiateAuthenticationRequestWithErrorContext(boolean showError, boolean showErrorOnLoginPage,
-                                                                  boolean errorContextPresent, int failedAttempts,
-                                                                  int maxAttempts, String lockedReason,
-                                                                  boolean hasErrorCode, String errorCodeParam,
-                                                                  boolean hasLockedReason, String lockedReasonParam,
-                                                                  boolean isDiagnosticLogsEnabled)
+    public void testInitAuthRequestErrorHandlingWithDiagnosticLog(boolean showError, boolean showErrorOnLoginPage,
+                                                                   boolean errorContextPresent, int failedAttempts,
+                                                                   int maxAttempts, String lockedReason,
+                                                                   boolean hasErrorCode, String errorCodeParam,
+                                                                   boolean hasLockedReason, String lockedReasonParam)
             throws AuthenticationFailedException, BackupCodeException, UserStoreException, IOException {
 
-        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(isDiagnosticLogsEnabled);
+        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(true);
+        testInitiateAuthenticationRequestWithErrorContext(showError, showErrorOnLoginPage, errorContextPresent,
+                failedAttempts, maxAttempts, lockedReason, hasErrorCode, errorCodeParam, hasLockedReason,
+                lockedReasonParam);
+    }
+
+    @Test(dataProvider = "initiateAuthenticationRequestWithErrorContextData")
+    public void testInitAuthRequestErrorHandlingWithOutDiagnosticLog(boolean showError, boolean showErrorOnLoginPage,
+                                                                     boolean errorContextPresent, int failedAttempts,
+                                                                     int maxAttempts, String lockedReason,
+                                                                     boolean hasErrorCode, String errorCodeParam,
+                                                                     boolean hasLockedReason, String lockedReasonParam)
+            throws AuthenticationFailedException, BackupCodeException, UserStoreException, IOException {
+
+        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(false);
+        testInitiateAuthenticationRequestWithErrorContext(showError, showErrorOnLoginPage, errorContextPresent,
+                failedAttempts, maxAttempts, lockedReason, hasErrorCode, errorCodeParam, hasLockedReason,
+                lockedReasonParam);
+    }
+
+    private void testInitiateAuthenticationRequestWithErrorContext(boolean showError, boolean showErrorOnLoginPage,
+                                                                   boolean errorContextPresent, int failedAttempts,
+                                                                   int maxAttempts, String lockedReason,
+                                                                   boolean hasErrorCode, String errorCodeParam,
+                                                                   boolean hasLockedReason, String lockedReasonParam)
+            throws AuthenticationFailedException, BackupCodeException, UserStoreException, IOException {
+
         String username = "TEST-DOMAIN/test@gmail.com";
         Map<String, String> claims = new HashMap<>();
         claims.put(BACKUP_CODES_CLAIM, HASHED_BACKUP_CODES);
@@ -392,7 +470,7 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
         String adminLocked = BackupCodeAuthenticatorConstants.ADMIN_INITIATED;
         String lockedErrorCode = UserCoreConstants.ErrorCode.USER_IS_LOCKED;
 
-        return addDiagnosticLogStatusToExistingDataProvider(new Object[][]{
+        return new Object[][]{
                 {true, true, true, 3, 3, "", true, "&errorCode=" + lockedErrorCode, true,
                         "&lockedReason=" + maxAttemptsExceeded},
                 {false, true, true, 3, 3, "", false, "errorCode", false, "lockedReason"},
@@ -404,24 +482,6 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
                         "&lockedReason=" + maxAttemptsExceeded},
                 {true, false, true, 3, 3, "", false, "errorCode", false, "lockedReason"},
                 {true, true, false, 3, 3, "", false, "errorCode", false, "lockedReason"}
-        });
-    }
-
-    private static Object[][] addDiagnosticLogStatusToExistingDataProvider(Object[][] existingDataProvider) {
-
-        // Combine original values with diagnostic log status.
-        Object[][] combinedValues = new Object[existingDataProvider.length * 2][];
-        for (int i = 0; i < existingDataProvider.length; i++) {
-            combinedValues[i * 2] = appendValue(existingDataProvider[i], true); // Enable diagnostic logs.
-            combinedValues[i * 2 + 1] = appendValue(existingDataProvider[i], false); // Disable diagnostic logs.
-        }
-        return combinedValues;
-    }
-
-    private static Object[] appendValue(Object[] originalArray, Object value) {
-
-        Object[] newArray = Arrays.copyOf(originalArray, originalArray.length + 1);
-        newArray[originalArray.length] = value;
-        return newArray;
+        };
     }
 }
