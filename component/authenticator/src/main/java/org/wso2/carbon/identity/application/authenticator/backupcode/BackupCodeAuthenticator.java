@@ -177,7 +177,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
         if (LoggerUtils.isDiagnosticLogsEnabled()) {
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
                     BACKUP_CODE_AUTH_SERVICE, INITIATE_BACKUP_CODE_REQUEST);
-            diagnosticLogBuilder.resultMessage("Initiate backup code authentication request.")
+            diagnosticLogBuilder.resultMessage("Initiating backup code authentication request.")
                     .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
                     .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
                     .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
