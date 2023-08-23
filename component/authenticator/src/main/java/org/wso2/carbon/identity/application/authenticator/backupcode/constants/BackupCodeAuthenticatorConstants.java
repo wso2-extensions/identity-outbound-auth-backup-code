@@ -51,6 +51,23 @@ public class BackupCodeAuthenticatorConstants {
     public static final String MAX_ATTEMPTS_EXCEEDED = "MAX_ATTEMPTS_EXCEEDED";
     public static final String ADMIN_INITIATED = "ADMIN_INITIATED";
 
+    /**
+     * Constants related to log management.
+     */
+    public static class LogConstants {
+
+        public static final String BACKUP_CODE_AUTH_SERVICE = "local-auth-backupcode";
+
+        /**
+         * Define action IDs for diagnostic logs.
+         */
+        public static class ActionIDs {
+
+            public static final String PROCESS_AUTHENTICATION_RESPONSE = "process-backupcode-authentication-response";
+            public static final String INITIATE_BACKUP_CODE_REQUEST = "initiate-backupcode-authentication-request";
+        }
+    }
+
     public enum ErrorMessages {
 
         ERROR_NO_USERNAME("60001", "Username cannot be empty"),
