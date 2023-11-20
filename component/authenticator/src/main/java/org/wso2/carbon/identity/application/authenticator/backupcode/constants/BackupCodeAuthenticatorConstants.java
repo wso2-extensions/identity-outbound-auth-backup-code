@@ -31,6 +31,7 @@ public class BackupCodeAuthenticatorConstants {
     public static final String LENGTH_OF_BACKUP_CODE = "BackupCode.BackupCodeLength";
     public static final String REQUIRED_NO_OF_BACKUP_CODES = "BackupCode.BackupCodeSize";
     public static final String BACKUP_CODE = "BackupCode";
+    public static final String DISPLAY_BACKUP_CODE = "Backup Code";
     public static final String SEND_TOKEN = "sendToken";
     public static final String ENABLE_BACKUP_CODE = "ENABLE_BACKUP_CODE";
     public static final String AUTHENTICATED_USER = "authenticatedUser";
