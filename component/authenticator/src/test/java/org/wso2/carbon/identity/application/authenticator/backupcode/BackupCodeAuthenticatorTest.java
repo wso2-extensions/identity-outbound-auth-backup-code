@@ -25,6 +25,7 @@ import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.testng.PowerMockTestCase;
+import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -32,11 +33,14 @@ import org.wso2.carbon.extension.identity.helper.FederatedAuthenticatorUtil;
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticatorFlowStatus;
 import org.wso2.carbon.identity.application.authentication.framework.config.builder.FileBasedConfigurationBuilder;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.AuthenticatorConfig;
+import org.wso2.carbon.identity.application.authentication.framework.config.model.ExternalIdPConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.UserIdNotFoundException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorParamMetadata;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants;
 import org.wso2.carbon.identity.application.authenticator.backupcode.exception.BackupCodeException;
@@ -59,9 +63,12 @@ import org.wso2.carbon.utils.CarbonUtils;
 import org.wso2.carbon.utils.ConfigurationContextService;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.servlet.http.HttpServletRequest;
@@ -82,6 +89,7 @@ import static org.wso2.carbon.identity.application.authenticator.backupcode.cons
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.AUTHENTICATION;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.BACKUP_CODE;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.Claims.BACKUP_CODES_CLAIM;
+import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.DISPLAY_BACKUP_CODE;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.IS_INITIAL_FEDERATED_USER_ATTEMPT;
 
 @PrepareForTest({BackupCodeAuthenticator.class, BackupCodeUtil.class, BackupCodeDataHolder.class,
@@ -89,9 +97,12 @@ import static org.wso2.carbon.identity.application.authenticator.backupcode.cons
         FederatedAuthenticatorUtil.class, IdentityCoreServiceComponent.class, CarbonUtils.class, LoggerUtils.class})
 public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
 
+    private static final String BACKUP_CODE_PARAM = "backup.code.param";
     @Mock
     HttpServletRequest mockHttpServletRequest;
 
+    @Mock
+   ExternalIdPConfig externalIdPConfig;
     @Mock
     HttpServletResponse mocHttpServletResponse;
 
@@ -127,6 +138,7 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
 
     @Mock
     FileBasedConfigurationBuilder fileBasedConfigurationBuilder;
+    BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
 
     private static final String VALID_TOKEN = "234561";
     private static final String INVALID_TOKEN = "123456";
@@ -483,5 +495,43 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
                 {true, false, true, 3, 3, "", false, "errorCode", false, "lockedReason"},
                 {true, true, false, 3, 3, "", false, "errorCode", false, "lockedReason"}
         };
+    }
+
+    @Test
+    public void testIsAPIBasedAuthenticationSupported() {
+
+        boolean isAPIBasedAuthenticationSupported = backupCodeAuthenticator.isAPIBasedAuthenticationSupported();
+        Assert.assertTrue(isAPIBasedAuthenticationSupported);
+    }
+
+    @Test
+    public void testGetAuthInitiationData() {
+
+        when(mockAuthenticationContext.getExternalIdP()).thenReturn(externalIdPConfig);
+        when(externalIdPConfig.getIdPName()).thenReturn("LOCAL");
+        Optional<AuthenticatorData> authenticatorData = backupCodeAuthenticator.
+                getAuthInitiationData(mockAuthenticationContext);
+
+        Assert.assertTrue(authenticatorData.isPresent());
+        AuthenticatorData authenticatorDataObj = authenticatorData.get();
+
+        List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
+        AuthenticatorParamMetadata codeMetadata = new AuthenticatorParamMetadata(
+                BACKUP_CODE, DISPLAY_BACKUP_CODE, FrameworkConstants.AuthenticatorParamType.STRING,
+                1, Boolean.TRUE, BACKUP_CODE_PARAM);
+        authenticatorParamMetadataList.add(codeMetadata);
+        Assert.assertEquals(authenticatorDataObj.getRequiredParams().size(), 1);
+        Assert.assertEquals(authenticatorDataObj.getAuthParams().size(), authenticatorParamMetadataList.size(),
+                "Size of lists should be equal.");
+        for (int i = 0; i < authenticatorParamMetadataList.size(); i++) {
+            AuthenticatorParamMetadata expectedParam = authenticatorParamMetadataList.get(i);
+            AuthenticatorParamMetadata actualParam = authenticatorDataObj.getAuthParams().get(i);
+            Assert.assertEquals(actualParam.getName(), expectedParam.getName(), "Parameter name should match.");
+            Assert.assertEquals(actualParam.getType(), expectedParam.getType(), "Parameter type should match.");
+            Assert.assertEquals(actualParam.getParamOrder(), expectedParam.getParamOrder(),
+                    "Parameter order should match.");
+            Assert.assertEquals(actualParam.isConfidential(), expectedParam.isConfidential(),
+                    "Parameter mandatory status should match.");
+        }
     }
 }
