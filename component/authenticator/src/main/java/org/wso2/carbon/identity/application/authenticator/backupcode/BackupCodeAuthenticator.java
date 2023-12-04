@@ -883,6 +883,12 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
         return true;
     }
 
+    @Override
+    public String getI18nKey() {
+
+        return BackupCodeAuthenticatorConstants.AUTHENTICATOR_BACKUP_OTP;
+    }
+
     /**
      * This method is responsible for obtaining authenticator-specific data needed to
      * initialize the authentication process within the provided authentication context.

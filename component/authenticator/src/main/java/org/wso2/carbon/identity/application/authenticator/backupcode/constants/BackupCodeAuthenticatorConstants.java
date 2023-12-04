@@ -23,6 +23,7 @@ package org.wso2.carbon.identity.application.authenticator.backupcode.constants;
 public class BackupCodeAuthenticatorConstants {
 
     public static final String BACKUP_CODE_AUTHENTICATOR_NAME = "backup-code-authenticator";
+    public static final String AUTHENTICATOR_BACKUP_OTP = "authenticator-backup-code";
     public static final String BACKUP_CODE_AUTHENTICATOR_FRIENDLY_NAME = "Backup Code";
     public static final String BACKUP_CODE_NUMERIC_CHAR_SET = "9245378016";
     public static final int DEFAULT_LENGTH_OF_BACKUP_CODE = 6;
