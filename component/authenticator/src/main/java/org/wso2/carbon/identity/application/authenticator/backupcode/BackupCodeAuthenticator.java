@@ -541,11 +541,35 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
                                                String errorParam, String multiOptionURI)
             throws AuthenticationFailedException, URISyntaxException, URLBuilderException {
 
+        Map<String, String> queryParams = extractQueryParamsFromContext(context);
         String queryString = "sessionDataKey=" + context.getContextIdentifier() + "&authenticators=" + getName() +
-                "&type=backup-code" + retryParam + "&username=" + username + errorParam + multiOptionURI;
+                "&type=backup-code" + retryParam + "&username=" + username + errorParam;
+
+        if (queryParams.containsKey("t")) {
+            queryString = queryString + "&t=" + queryParams.get("t");
+        }
+
+        if (queryParams.containsKey("sp")) {
+            queryString = queryString + "&sp=" + queryParams.get("sp");
+        }
+
+        queryString = queryString + multiOptionURI;
         String loginPage = FrameworkUtils.appendQueryParamsStringToUrl(BackupCodeUtil.getBackupCodeLoginPage(context),
                 queryString);
         return buildAbsoluteURL(loginPage);
+    }
+
+    private Map<String, String> extractQueryParamsFromContext(AuthenticationContext context) {
+
+        Map<String, String> parameters = new HashMap<>();
+        String[] keyValuePairs = context.getQueryParams().split("&");
+        for (String pair : keyValuePairs) {
+            String[] keyValue = pair.split("=");
+            if (keyValue.length == 2) {
+                parameters.put(keyValue[0], keyValue[1]);
+            }
+        }
+        return parameters;
     }
 
     private String buildErrorParamString(Map<String, String> paramMap) {
