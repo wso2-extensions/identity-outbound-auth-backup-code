@@ -148,6 +148,8 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
     private static final String HASHED_BACKUP_CODES =
             "2d578fa2a67a4e24933164a78752f9ea60cdbcbcb683637b582595e49d19a305,2dc0269fa54d269a87536810ec453cb095b4b92f45e63826a21dff1c2e76f169";
     private static final String TENANT_DOMAIN = "carbon.super";
+    private static final String QUERY_PARAMS = "client_id=MY_ACCOUNT&commonAuthCallerPath=%2Foauth2%2Fauthorize&forceAuth=false&passiveAuth=false&redirect_uri=https%3A%2F%2Flocalhost%2Fapp&t=testDomain&sp=application";
+    private static final String QUERY_PARAMS_WITHOUT_SP_T = "client_id=MY_ACCOUNT&commonAuthCallerPath=%2Foauth2%2Fauthorize&forceAuth=false&passiveAuth=false&redirect_uri=https%3A%2F%2Flocalhost%2Fapp";
     private String redirect;
 
     @BeforeMethod
@@ -201,36 +203,39 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
     public void testProcessAuthResponseWithDiagnosticLog(String token, String fullyQualifiedUserName,
                                                          String username, String userId, boolean isLocalUser,
                                                          boolean isAccountLock, boolean isInitialFedAttempt,
-                                                         Map<String, String> claims, boolean expectError)
+                                                         Map<String, String> claims, boolean expectError,
+                                                         String queryParams)
             throws IdentityEventException, UserStoreException, UserIdNotFoundException {
 
         when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(true);
         testProcessAuthenticationResponse(token, fullyQualifiedUserName, username, userId, isLocalUser, isAccountLock,
-                isInitialFedAttempt, claims, expectError);
+                isInitialFedAttempt, claims, expectError, queryParams);
     }
 
     @Test(dataProvider = "processAuthenticationResponseData")
     public void testProcessAuthResponseWithoutDiagnosticLog(String token, String fullyQualifiedUserName,
                                                             String username, String userId, boolean isLocalUser,
                                                             boolean isAccountLock, boolean isInitialFedAttempt,
-                                                            Map<String, String> claims, boolean expectError)
+                                                            Map<String, String> claims, boolean expectError,
+                                                            String queryParams)
             throws IdentityEventException, UserStoreException, UserIdNotFoundException {
 
         when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(false);
         testProcessAuthenticationResponse(token, fullyQualifiedUserName, username, userId, isLocalUser, isAccountLock,
-                isInitialFedAttempt, claims, expectError);
+                isInitialFedAttempt, claims, expectError, queryParams);
     }
 
     private void testProcessAuthenticationResponse(String token, String fullyQualifiedUserName, String username,
                                                   String userId, boolean isLocalUser, boolean isAccountLock,
                                                   boolean isInitialFedAttempt, Map<String, String> claims,
-                                                  boolean expectError)
+                                                  boolean expectError, String queryParams)
             throws IdentityEventException, UserStoreException, UserIdNotFoundException {
 
         mockStatic(BackupCodeUtil.class, CALLS_REAL_METHODS);
         mockStatic(BackupCodeDataHolder.class);
         when(mockHttpServletRequest.getParameter(BACKUP_CODE)).thenReturn(token);
         when(mockAuthenticationContext.getProperty(AUTHENTICATED_USER)).thenReturn(mockAuthenticatedUser);
+        when(mockAuthenticationContext.getQueryParams()).thenReturn(queryParams);
         when(mockAuthenticatedUser.toFullQualifiedUsername()).thenReturn(fullyQualifiedUserName);
         when(mockAuthenticatedUser.getUserName()).thenReturn(username);
         when(mockAuthenticatedUser.getUserId()).thenReturn(userId);
@@ -270,40 +275,43 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
         Map<String, String> claims = new HashMap<>();
         claims.put(BACKUP_CODES_CLAIM, HASHED_BACKUP_CODES);
         return new Object[][]{
-                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, null, true, false, false, claims, false},
-                {INVALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, true, false, false, claims, true},
-                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, false, false, true, claims, false},
-                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, true, true, false, claims, true},
-                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, true, false, false, new HashMap<>(), true},
-                {"", FULL_QUALIFIED_USERNAME, USERNAME, null, true, false, false, new HashMap<>(), true}};
+                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, null, true, false, false, claims, false, QUERY_PARAMS},
+                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, null, true, false, false, claims, false, QUERY_PARAMS_WITHOUT_SP_T},
+                {INVALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, true, false, false, claims, true, QUERY_PARAMS},
+                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, false, false, true, claims, false, QUERY_PARAMS},
+                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, true, true, false, claims, true, QUERY_PARAMS},
+                {VALID_TOKEN, FULL_QUALIFIED_USERNAME, USERNAME, USER_ID, true, false, false, new HashMap<>(), true, QUERY_PARAMS},
+                {"", FULL_QUALIFIED_USERNAME, USERNAME, null, true, false, false, new HashMap<>(), true, QUERY_PARAMS}};
     }
 
     @Test(dataProvider = "processData")
     public void testProcessWithDiagnosticLog(boolean isLogoutRequest, String backupCode, String authenticatorName,
                                              boolean isFedUser, String username, boolean isProvisioningEnabled,
                                              Map<String, String> claims, boolean authenticatedUserInContext,
-                                             boolean isRetrying, Object expectedFlowStatus, boolean expectError)
+                                             boolean isRetrying, Object expectedFlowStatus, boolean expectError,
+                                             String queryParams)
             throws BackupCodeException, UserStoreException {
         when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(true);
         testProcess(isLogoutRequest, backupCode, authenticatorName, isFedUser, username, isProvisioningEnabled, claims,
-                authenticatedUserInContext, isRetrying, expectedFlowStatus, expectError);
+                authenticatedUserInContext, isRetrying, expectedFlowStatus, expectError, queryParams);
     }
 
     @Test(dataProvider = "processData")
     public void testProcessWithOutDiagnosticLog(boolean isLogoutRequest, String backupCode, String authenticatorName,
                                                 boolean isFedUser, String username, boolean isProvisioningEnabled,
                                                 Map<String, String> claims, boolean authenticatedUserInContext,
-                                                boolean isRetrying, Object expectedFlowStatus, boolean expectError)
+                                                boolean isRetrying, Object expectedFlowStatus, boolean expectError,
+                                                String queryParams)
             throws BackupCodeException, UserStoreException {
         when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(false);
         testProcess(isLogoutRequest, backupCode, authenticatorName, isFedUser, username, isProvisioningEnabled, claims,
-                authenticatedUserInContext, isRetrying, expectedFlowStatus, expectError);
+                authenticatedUserInContext, isRetrying, expectedFlowStatus, expectError, queryParams);
     }
 
     private void testProcess(boolean isLogoutRequest, String backupCode, String authenticatorName, boolean isFedUser,
                             String username, boolean isProvisioningEnabled, Map<String, String> claims,
                             boolean authenticatedUserInContext, boolean isRetrying, Object expectedFlowStatus,
-                            boolean expectError) throws BackupCodeException, UserStoreException {
+                            boolean expectError, String queryParams) throws BackupCodeException, UserStoreException {
 
         BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
         Map<String, String> parameterMap = new HashMap<>();
@@ -321,6 +329,7 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
             when(mockAuthenticationContext.getLoginTenantDomain()).thenReturn(TENANT_DOMAIN);
             when(mockAuthenticationContext.getProperty(AUTHENTICATION)).thenReturn(authenticatorName);
             when(mockAuthenticationContext.isRetrying()).thenReturn(isRetrying);
+            when(mockAuthenticationContext.getQueryParams()).thenReturn(queryParams);
             when(mockHttpServletRequest.getParameter(BACKUP_CODE)).thenReturn(backupCode);
             when(BackupCodeUtil.getAuthenticatedUser(any())).thenAnswer(arg -> {
                 if (authenticatedUserInContext) {
@@ -372,23 +381,25 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
         claims.put(BACKUP_CODES_CLAIM, HASHED_BACKUP_CODES);
         return new Object[][]{
                 {false, null, "backup-code-authenticator", false, "test@gmail.com", false, claims, true, false,
-                        AuthenticatorFlowStatus.INCOMPLETE, false},
+                        AuthenticatorFlowStatus.INCOMPLETE, false, QUERY_PARAMS},
+                {false, null, "backup-code-authenticator", false, "test@gmail.com", false, claims, true, false,
+                        AuthenticatorFlowStatus.INCOMPLETE, false, QUERY_PARAMS_WITHOUT_SP_T},
                 {true, VALID_TOKEN, "backup-code-authenticator", false, "test@gmail.com", false, claims, true, false,
-                        AuthenticatorFlowStatus.SUCCESS_COMPLETED, false},
+                        AuthenticatorFlowStatus.SUCCESS_COMPLETED, false, QUERY_PARAMS},
                 {true, null, "backup-code-authenticator", false, "test@gmail.com", false, claims, true, false,
-                        AuthenticatorFlowStatus.SUCCESS_COMPLETED, false},
+                        AuthenticatorFlowStatus.SUCCESS_COMPLETED, false, QUERY_PARAMS},
                 {false, null, "totp", false, "test@gmail.com", false, claims, true, false,
-                        AuthenticatorFlowStatus.SUCCESS_COMPLETED, false},
+                        AuthenticatorFlowStatus.SUCCESS_COMPLETED, false, QUERY_PARAMS},
                 {false, null, "backup-code-authenticator", true, "test@gmail.com", true, claims, true, false,
-                        AuthenticatorFlowStatus.INCOMPLETE, false},
+                        AuthenticatorFlowStatus.INCOMPLETE, false, QUERY_PARAMS},
                 {false, null, "backup-code-authenticator", true, "test@gmail.com", false, claims, true, false,
-                        AuthenticatorFlowStatus.FAIL_COMPLETED, true},
+                        AuthenticatorFlowStatus.FAIL_COMPLETED, true, QUERY_PARAMS},
                 {false, null, "backup-code-authenticator", false, "test@gmail.com", false, claims, false, false,
-                        AuthenticatorFlowStatus.FAIL_COMPLETED, true},
+                        AuthenticatorFlowStatus.FAIL_COMPLETED, true, QUERY_PARAMS},
                 {false, null, "backup-code-authenticator", false, "test@gmail.com", false, claims, true, true,
-                        AuthenticatorFlowStatus.INCOMPLETE, false},
+                        AuthenticatorFlowStatus.INCOMPLETE, false, QUERY_PARAMS},
                 {false, null, "backup-code-authenticator", false, "test@gmail.com", false, new HashMap<>(), true, true,
-                        AuthenticatorFlowStatus.INCOMPLETE, false}
+                        AuthenticatorFlowStatus.INCOMPLETE, false, QUERY_PARAMS}
         };
     }
 
@@ -453,6 +464,7 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
         when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
         when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig1);
         when(mockAuthenticationContext.getLoginTenantDomain()).thenReturn(TENANT_DOMAIN);
+        when(mockAuthenticationContext.getQueryParams()).thenReturn(QUERY_PARAMS);
         when(BackupCodeUtil.getAuthenticatedUser(any())).thenReturn(mockAuthenticatedUser);
         when(mockAuthenticatedUser.getUserName()).thenReturn(username);
         when(mockUserStoreManager.getUserClaimValues(anyString(), anyObject(), anyString())).thenReturn(claims);
