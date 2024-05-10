@@ -927,6 +927,7 @@ public class BackupCodeAuthenticator extends AbstractApplicationAuthenticator im
 
         AuthenticatorData authenticatorData = new AuthenticatorData();
         authenticatorData.setName(getName());
+        authenticatorData.setDisplayName(getFriendlyName());
         String idpName = null;
 
         if (context != null && context.getExternalIdP() != null) {
