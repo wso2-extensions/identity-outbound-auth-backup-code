@@ -539,6 +539,8 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
             AuthenticatorParamMetadata expectedParam = authenticatorParamMetadataList.get(i);
             AuthenticatorParamMetadata actualParam = authenticatorDataObj.getAuthParams().get(i);
             Assert.assertEquals(actualParam.getName(), expectedParam.getName(), "Parameter name should match.");
+            Assert.assertEquals(actualParam.getDisplayName(), expectedParam.getDisplayName(),
+                    "Parameter display name should match.");
             Assert.assertEquals(actualParam.getType(), expectedParam.getType(), "Parameter type should match.");
             Assert.assertEquals(actualParam.getParamOrder(), expectedParam.getParamOrder(),
                     "Parameter order should match.");
