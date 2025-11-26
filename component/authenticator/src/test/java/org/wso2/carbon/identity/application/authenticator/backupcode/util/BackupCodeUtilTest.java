@@ -19,8 +19,11 @@
 package org.wso2.carbon.identity.application.authenticator.backupcode.util;
 
 import org.mockito.Mock;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.testng.PowerMockTestCase;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.wso2.carbon.identity.application.authentication.framework.config.ConfigurationFacade;
@@ -56,19 +59,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.mockito.Matchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.AssertJUnit.*;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.*;
 
-@PrepareForTest({BackupCodeUtil.class, BackupCodeDataHolder.class, MultitenantUtils.class, IdentityTenantUtil.class,
-        FileBasedConfigurationBuilder.class, ConfigurationFacade.class, ServiceURLBuilder.class})
-public class BackupCodeUtilTest extends PowerMockTestCase {
+public class BackupCodeUtilTest {
 
     private final String tenantDomain = "test.domain";
 
     BackupCodeUtil backupCodeUtil = new BackupCodeUtil();
+
+    private AutoCloseable openMocks;
+    private Map<String, String> backupCodeParameters;
 
     @Mock
     RealmService realmService;
@@ -102,6 +107,65 @@ public class BackupCodeUtilTest extends PowerMockTestCase {
 
     @Mock
     UserStoreManager mockUserStoreManager;
+
+    private MockedStatic<BackupCodeDataHolder> backupCodeDataHolderMockedStatic;
+    private MockedStatic<MultitenantUtils> multitenantUtilsMockedStatic;
+    private MockedStatic<IdentityTenantUtil> identityTenantUtilMockedStatic;
+    private MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilderMockedStatic;
+    private MockedStatic<ConfigurationFacade> configurationFacadeMockedStatic;
+    private MockedStatic<ServiceURLBuilder> serviceURLBuilderMockedStatic;
+
+    @BeforeMethod
+    public void setUp() {
+        openMocks = MockitoAnnotations.openMocks(this);
+        backupCodeDataHolderMockedStatic = Mockito.mockStatic(BackupCodeDataHolder.class);
+        multitenantUtilsMockedStatic = Mockito.mockStatic(MultitenantUtils.class);
+        identityTenantUtilMockedStatic = Mockito.mockStatic(IdentityTenantUtil.class);
+        fileBasedConfigurationBuilderMockedStatic = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+        configurationFacadeMockedStatic = Mockito.mockStatic(ConfigurationFacade.class);
+        serviceURLBuilderMockedStatic = Mockito.mockStatic(ServiceURLBuilder.class);
+
+        backupCodeParameters = new HashMap<>();
+        try {
+            fileBasedConfigurationBuilderMockedStatic.when(FileBasedConfigurationBuilder::getInstance)
+                    .thenReturn(fileBasedConfigurationBuilder);
+            when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+            when(authenticatorConfig.getParameterMap()).thenReturn(backupCodeParameters);
+            configurationFacadeMockedStatic.when(ConfigurationFacade::getInstance).thenReturn(configurationFacade);
+            when(configurationFacade.getAuthenticationEndpointURL()).thenReturn(BACKUP_CODE_LOGIN_PAGE);
+            serviceURLBuilderMockedStatic.when(ServiceURLBuilder::create).thenReturn(serviceURLBuilder);
+            when(serviceURLBuilder.addPath(anyString())).thenReturn(serviceURLBuilder);
+            when(serviceURLBuilder.build()).thenReturn(serviceURL);
+            when(serviceURL.getAbsolutePublicURL()).thenReturn("https://localhost/backup");
+        } catch (URLBuilderException e) {
+            throw new RuntimeException("Error initializing service URL builder mocks", e);
+        }
+    }
+
+    @AfterMethod
+    public void tearDown() throws Exception {
+        if (backupCodeDataHolderMockedStatic != null) {
+            backupCodeDataHolderMockedStatic.close();
+        }
+        if (multitenantUtilsMockedStatic != null) {
+            multitenantUtilsMockedStatic.close();
+        }
+        if (identityTenantUtilMockedStatic != null) {
+            identityTenantUtilMockedStatic.close();
+        }
+        if (fileBasedConfigurationBuilderMockedStatic != null) {
+            fileBasedConfigurationBuilderMockedStatic.close();
+        }
+        if (configurationFacadeMockedStatic != null) {
+            configurationFacadeMockedStatic.close();
+        }
+        if (serviceURLBuilderMockedStatic != null) {
+            serviceURLBuilderMockedStatic.close();
+        }
+        if (openMocks != null) {
+            openMocks.close();
+        }
+    }
 
     @Test(dataProvider = "hashStringData")
     public void testGenerateHashString(String backupCode) throws BackupCodeException {
@@ -195,8 +259,7 @@ public class BackupCodeUtilTest extends PowerMockTestCase {
     @Test
     public void testGetRealmService() {
 
-        mockStatic(BackupCodeDataHolder.class);
-        when(BackupCodeDataHolder.getRealmService()).thenReturn(realmService);
+        backupCodeDataHolderMockedStatic.when(BackupCodeDataHolder::getRealmService).thenReturn(realmService);
         assertEquals(realmService, backupCodeUtil.getRealmService());
     }
 
@@ -227,24 +290,18 @@ public class BackupCodeUtilTest extends PowerMockTestCase {
     public void testGetBackupCodeLoginPage(String tenantDomain, boolean isTenantQualifiedURL)
             throws AuthenticationFailedException, URLBuilderException {
 
-        mockStatic(IdentityTenantUtil.class);
-        mockStatic(FileBasedConfigurationBuilder.class);
-        mockStatic(ConfigurationFacade.class);
-        mockStatic(ServiceURLBuilder.class);
+        identityTenantUtilMockedStatic.when(IdentityTenantUtil::isTenantQualifiedUrlsEnabled)
+                .thenReturn(isTenantQualifiedURL);
+        when(ConfigurationFacade.getInstance()).thenReturn(configurationFacade);
+        when(configurationFacade.getAuthenticationEndpointURL()).thenReturn(BACKUP_CODE_LOGIN_PAGE);
+        serviceURLBuilderMockedStatic.when(ServiceURLBuilder::create).thenReturn(serviceURLBuilder);
+        when(serviceURLBuilder.addPath(anyString())).thenReturn(serviceURLBuilder);
+        when(serviceURLBuilder.build()).thenReturn(serviceURL);
+        when(serviceURL.getAbsolutePublicURL()).thenReturn("testURL");
         AuthenticationContext authenticationContext = new AuthenticationContext();
         authenticationContext.setTenantDomain(tenantDomain);
         authenticationContext.setProperty(BackupCodeAuthenticatorConstants.BACKUP_CODE_AUTHENTICATION_ERROR_PAGE_URL,
                 "backupcodeauthenticationendpoint/custom/error.jsp");
-        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
-        when(fileBasedConfigurationBuilder.getAuthenticatorBean(BACKUP_CODE_AUTHENTICATOR_NAME)).thenReturn(
-                authenticatorConfig);
-        when(IdentityTenantUtil.isTenantQualifiedUrlsEnabled()).thenReturn(isTenantQualifiedURL);
-        when(ConfigurationFacade.getInstance()).thenReturn(configurationFacade);
-        when(configurationFacade.getAuthenticationEndpointURL()).thenReturn(BACKUP_CODE_LOGIN_PAGE);
-        when(ServiceURLBuilder.create()).thenReturn(serviceURLBuilder);
-        when(serviceURLBuilder.addPath(anyString())).thenReturn(serviceURLBuilder);
-        when(serviceURLBuilder.build()).thenReturn(serviceURL);
-        when(serviceURL.getAbsolutePublicURL()).thenReturn("testURL");
         String result = BackupCodeUtil.getBackupCodeLoginPage(authenticationContext);
         assertNotNull(result);
     }
@@ -285,24 +342,18 @@ public class BackupCodeUtilTest extends PowerMockTestCase {
     public void testGetBackupCodeErrorPage(String tenantDomain, boolean isTenantQualifiedURL)
             throws AuthenticationFailedException, URLBuilderException {
 
-        mockStatic(IdentityTenantUtil.class);
-        mockStatic(FileBasedConfigurationBuilder.class);
-        mockStatic(ConfigurationFacade.class);
-        mockStatic(ServiceURLBuilder.class);
+        identityTenantUtilMockedStatic.when(IdentityTenantUtil::isTenantQualifiedUrlsEnabled)
+                .thenReturn(isTenantQualifiedURL);
+        when(ConfigurationFacade.getInstance()).thenReturn(configurationFacade);
+        when(configurationFacade.getAuthenticationEndpointURL()).thenReturn(BACKUP_CODE_LOGIN_PAGE);
+        serviceURLBuilderMockedStatic.when(ServiceURLBuilder::create).thenReturn(serviceURLBuilder);
+        when(serviceURLBuilder.addPath(anyString())).thenReturn(serviceURLBuilder);
+        when(serviceURLBuilder.build()).thenReturn(serviceURL);
+        when(serviceURL.getAbsolutePublicURL()).thenReturn("testURL");
         AuthenticationContext authenticationContext = new AuthenticationContext();
         authenticationContext.setTenantDomain(tenantDomain);
         authenticationContext.setProperty(BackupCodeAuthenticatorConstants.BACKUP_CODE_AUTHENTICATION_ERROR_PAGE_URL,
                 "totpauthenticationendpoint/custom/error.jsp");
-        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
-        when(fileBasedConfigurationBuilder.getAuthenticatorBean(BACKUP_CODE_AUTHENTICATOR_NAME)).thenReturn(
-                authenticatorConfig);
-        when(IdentityTenantUtil.isTenantQualifiedUrlsEnabled()).thenReturn(isTenantQualifiedURL);
-        when(ConfigurationFacade.getInstance()).thenReturn(configurationFacade);
-        when(configurationFacade.getAuthenticationEndpointURL()).thenReturn(BACKUP_CODE_LOGIN_PAGE);
-        when(ServiceURLBuilder.create()).thenReturn(serviceURLBuilder);
-        when(serviceURLBuilder.addPath(anyString())).thenReturn(serviceURLBuilder);
-        when(serviceURLBuilder.build()).thenReturn(serviceURL);
-        when(serviceURL.getAbsolutePublicURL()).thenReturn("testURL");
         String result = BackupCodeUtil.getBackupCodeErrorPage(authenticationContext);
         assertNotNull(result);
     }
@@ -427,8 +478,8 @@ public class BackupCodeUtilTest extends PowerMockTestCase {
     public void testIsAccountLocked(boolean expectedResult, boolean result)
             throws AccountLockServiceException, AuthenticationFailedException {
 
-        mockStatic(BackupCodeDataHolder.class);
-        when(BackupCodeDataHolder.getAccountLockService()).thenReturn(accountLockService);
+        backupCodeDataHolderMockedStatic.when(BackupCodeDataHolder::getAccountLockService)
+                .thenReturn(accountLockService);
         String username = "test";
         String userStoreDomain = "test.userStore";
         when(accountLockService.isAccountLocked(username, tenantDomain, userStoreDomain)).thenReturn(result);
@@ -445,9 +496,9 @@ public class BackupCodeUtilTest extends PowerMockTestCase {
     public void testGenerateBackupCodes(Object connectorConfigs, Object connectorConfigs1, Object connectorConfigs2)
             throws IdentityGovernanceException, BackupCodeException {
 
-        mockStatic(BackupCodeDataHolder.class);
-        when(BackupCodeDataHolder.getIdentityGovernanceService()).thenReturn(identityGovernanceService);
-        when(identityGovernanceService.getConfiguration(anyObject(), anyString())).thenAnswer(arg -> {
+        backupCodeDataHolderMockedStatic.when(BackupCodeDataHolder::getIdentityGovernanceService)
+                .thenReturn(identityGovernanceService);
+        when(identityGovernanceService.getConfiguration(any(String[].class), anyString())).thenAnswer(arg -> {
             String[] argArray = (String[]) arg.getArguments()[0];
             if ((argArray[0]).equals(REQUIRED_NO_OF_BACKUP_CODES)) {
                 return connectorConfigs;
@@ -507,10 +558,8 @@ public class BackupCodeUtilTest extends PowerMockTestCase {
                                               boolean isUserStoreManagerNull, boolean isUserRealmNull,
                                               boolean expectError) throws UserStoreException {
 
-        mockStatic(IdentityTenantUtil.class);
-        mockStatic(BackupCodeDataHolder.class);
-        when(IdentityTenantUtil.getTenantId(anyString())).thenReturn(tenantId);
-        when(BackupCodeDataHolder.getRealmService()).thenReturn(realmService);
+        identityTenantUtilMockedStatic.when(() -> IdentityTenantUtil.getTenantId(anyString())).thenReturn(tenantId);
+        backupCodeDataHolderMockedStatic.when(BackupCodeDataHolder::getRealmService).thenReturn(realmService);
         when(realmService.getTenantUserRealm(anyInt())).thenAnswer(arg -> {
             if (isUserRealmNull) {
                 return null;
