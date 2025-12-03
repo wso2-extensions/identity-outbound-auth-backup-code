@@ -21,11 +21,12 @@ package org.wso2.carbon.identity.application.authenticator.backupcode;
 import org.apache.axis2.context.ConfigurationContext;
 import org.apache.axis2.engine.AxisConfiguration;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -64,7 +65,6 @@ import org.wso2.carbon.utils.ConfigurationContextService;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,14 +74,13 @@ import java.util.UUID;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
@@ -92,10 +91,7 @@ import static org.wso2.carbon.identity.application.authenticator.backupcode.cons
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.DISPLAY_BACKUP_CODE;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.IS_INITIAL_FEDERATED_USER_ATTEMPT;
 
-@PrepareForTest({BackupCodeAuthenticator.class, BackupCodeUtil.class, BackupCodeDataHolder.class,
-        FileBasedConfigurationBuilder.class, IdentityUtil.class,
-        FederatedAuthenticatorUtil.class, IdentityCoreServiceComponent.class, CarbonUtils.class, LoggerUtils.class})
-public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
+public class BackupCodeAuthenticatorTest {
 
     private static final String BACKUP_CODE_PARAM = "backup.code.param";
     @Mock
@@ -152,10 +148,25 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
     private static final String QUERY_PARAMS_WITHOUT_SP_T = "client_id=MY_ACCOUNT&commonAuthCallerPath=%2Foauth2%2Fauthorize&forceAuth=false&passiveAuth=false&redirect_uri=https%3A%2F%2Flocalhost%2Fapp";
     private String redirect;
 
+    private AutoCloseable openMocks;
+    private MockedStatic<LoggerUtils> loggerUtilsMockedStatic;
+
     @BeforeMethod
     public void setUp() {
 
-        mockStatic(LoggerUtils.class);
+        openMocks = MockitoAnnotations.openMocks(this);
+        loggerUtilsMockedStatic = Mockito.mockStatic(LoggerUtils.class);
+    }
+
+    @AfterMethod
+    public void tearDown() throws Exception {
+
+        if (loggerUtilsMockedStatic != null) {
+            loggerUtilsMockedStatic.close();
+        }
+        if (openMocks != null) {
+            openMocks.close();
+        }
     }
 
     @Test(dataProvider = "canHandleData")
@@ -229,45 +240,49 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
                                                   String userId, boolean isLocalUser, boolean isAccountLock,
                                                   boolean isInitialFedAttempt, Map<String, String> claims,
                                                   boolean expectError, String queryParams)
-            throws IdentityEventException, UserStoreException, UserIdNotFoundException {
+             throws IdentityEventException, UserStoreException, UserIdNotFoundException {
 
-        mockStatic(BackupCodeUtil.class, CALLS_REAL_METHODS);
-        mockStatic(BackupCodeDataHolder.class);
-        when(mockHttpServletRequest.getParameter(BACKUP_CODE)).thenReturn(token);
-        when(mockAuthenticationContext.getProperty(AUTHENTICATED_USER)).thenReturn(mockAuthenticatedUser);
-        when(mockAuthenticationContext.getQueryParams()).thenReturn(queryParams);
-        when(mockAuthenticatedUser.toFullQualifiedUsername()).thenReturn(fullyQualifiedUserName);
-        when(mockAuthenticatedUser.getUserName()).thenReturn(username);
-        when(mockAuthenticatedUser.getUserId()).thenReturn(userId);
-        try {
-            PowerMockito.doReturn(isLocalUser).when(BackupCodeUtil.class, "isLocalUser", mockAuthenticationContext);
-            PowerMockito.doReturn(isAccountLock)
-                    .when(BackupCodeUtil.class, "isAccountLocked", anyString(), anyString(), anyString());
-            PowerMockito.doReturn(mockUserStoreManager)
-                    .when(BackupCodeUtil.class, "getUserStoreManagerOfUser", anyString());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        when(BackupCodeDataHolder.getIdentityEventService()).thenReturn(mockIdentityEventService);
-        doNothing().when(mockIdentityEventService).handleEvent(anyObject());
-        when(mockAuthenticationContext.getProperty(IS_INITIAL_FEDERATED_USER_ATTEMPT)).thenReturn(isInitialFedAttempt);
-        when(mockAuthenticationContext.getProperty(BACKUP_CODES_CLAIM)).thenAnswer(arg -> {
-            if (isInitialFedAttempt) {
-                return HASHED_BACKUP_CODES;
+        try (MockedStatic<BackupCodeUtil> backupCodeUtilMockedStatic = Mockito.mockStatic(BackupCodeUtil.class,
+                CALLS_REAL_METHODS);
+             MockedStatic<BackupCodeDataHolder> backupCodeDataHolderMockedStatic =
+                     Mockito.mockStatic(BackupCodeDataHolder.class)) {
+
+            when(mockHttpServletRequest.getParameter(BACKUP_CODE)).thenReturn(token);
+            when(mockAuthenticationContext.getProperty(AUTHENTICATED_USER)).thenReturn(mockAuthenticatedUser);
+            when(mockAuthenticationContext.getQueryParams()).thenReturn(queryParams);
+            when(mockAuthenticatedUser.toFullQualifiedUsername()).thenReturn(fullyQualifiedUserName);
+            when(mockAuthenticatedUser.getUserName()).thenReturn(username);
+            when(mockAuthenticatedUser.getUserId()).thenReturn(userId);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.isLocalUser(mockAuthenticationContext))
+                    .thenReturn(isLocalUser);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.isAccountLocked(anyString(), anyString(), anyString()))
+                    .thenReturn(isAccountLock);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getUserStoreManagerOfUser(anyString()))
+                    .thenReturn(mockUserStoreManager);
+            backupCodeDataHolderMockedStatic.when(BackupCodeDataHolder::getIdentityEventService)
+                    .thenReturn(mockIdentityEventService);
+            doNothing().when(mockIdentityEventService).handleEvent(any());
+            when(mockAuthenticationContext.getProperty(IS_INITIAL_FEDERATED_USER_ATTEMPT))
+                    .thenReturn(isInitialFedAttempt);
+            when(mockAuthenticationContext.getProperty(BACKUP_CODES_CLAIM)).thenAnswer(arg -> {
+                if (isInitialFedAttempt) {
+                    return HASHED_BACKUP_CODES;
+                }
+                return null;
+            });
+            when(mockUserStoreManager.getUserClaimValues(anyString(), any(String[].class), nullable(String.class)))
+                    .thenReturn(claims);
+            doNothing().when(mockUserStoreManager).setUserClaimValues(any(), any(), any());
+            BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
+            try {
+                backupCodeAuthenticator.processAuthenticationResponse(mockHttpServletRequest, mocHttpServletResponse,
+                        mockAuthenticationContext);
+                assertFalse(expectError);
+            } catch (AuthenticationFailedException e) {
+                assertTrue(expectError);
             }
-            return null;
-        });
-        when(mockUserStoreManager.getUserClaimValues(anyString(), anyObject(), anyString())).thenReturn(claims);
-        doNothing().when(mockUserStoreManager).setUserClaimValues(any(), anyObject(), any());
-        BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
-        try {
-            backupCodeAuthenticator.processAuthenticationResponse(mockHttpServletRequest, mocHttpServletResponse,
-                    mockAuthenticationContext);
-            assertFalse(expectError);
-        } catch (AuthenticationFailedException e) {
-            assertTrue(expectError);
-        }
-    }
+         }
+      }
 
     @DataProvider(name = "processAuthenticationResponseData")
     public Object[][] dataForProcessAuthenticationResponse() {
@@ -309,56 +324,66 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
     }
 
     private void testProcess(boolean isLogoutRequest, String backupCode, String authenticatorName, boolean isFedUser,
-                            String username, boolean isProvisioningEnabled, Map<String, String> claims,
-                            boolean authenticatedUserInContext, boolean isRetrying, Object expectedFlowStatus,
-                            boolean expectError, String queryParams) throws BackupCodeException, UserStoreException {
+                             String username, boolean isProvisioningEnabled, Map<String, String> claims,
+                             boolean authenticatedUserInContext, boolean isRetrying, Object expectedFlowStatus,
+                             boolean expectError, String queryParams) throws BackupCodeException, UserStoreException {
 
-        BackupCodeAuthenticator backupCodeAuthenticator = new BackupCodeAuthenticator();
         Map<String, String> parameterMap = new HashMap<>();
         parameterMap.put(FrameworkConstants.SHOW_AUTHFAILURE_RESON_CONFIG, String.valueOf(false));
         AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig(
                 BackupCodeAuthenticatorConstants.BACKUP_CODE_AUTHENTICATOR_NAME, true, parameterMap);
-        try {
-            mockStatic(BackupCodeUtil.class);
-            mockStatic(FederatedAuthenticatorUtil.class);
-            mockStatic(BackupCodeDataHolder.class);
-            mockStatic(IdentityCoreServiceComponent.class);
-            mockStatic(CarbonUtils.class);
-            mockStatic(FileBasedConfigurationBuilder.class);
+
+        try (MockedStatic<BackupCodeUtil> backupCodeUtilMockedStatic = Mockito.mockStatic(BackupCodeUtil.class);
+             MockedStatic<FederatedAuthenticatorUtil> federatedAuthenticatorUtilMockedStatic =
+                     Mockito.mockStatic(FederatedAuthenticatorUtil.class);
+             MockedStatic<BackupCodeDataHolder> backupCodeDataHolderMockedStatic =
+                     Mockito.mockStatic(BackupCodeDataHolder.class);
+             MockedStatic<IdentityCoreServiceComponent> identityCoreServiceComponentMockedStatic =
+                     Mockito.mockStatic(IdentityCoreServiceComponent.class);
+             MockedStatic<CarbonUtils> carbonUtilsMockedStatic = Mockito.mockStatic(CarbonUtils.class);
+             MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilderMockedStatic =
+                     Mockito.mockStatic(FileBasedConfigurationBuilder.class)) {
             when(mockAuthenticationContext.isLogoutRequest()).thenReturn(isLogoutRequest);
             when(mockAuthenticationContext.getLoginTenantDomain()).thenReturn(TENANT_DOMAIN);
             when(mockAuthenticationContext.getProperty(AUTHENTICATION)).thenReturn(authenticatorName);
             when(mockAuthenticationContext.isRetrying()).thenReturn(isRetrying);
             when(mockAuthenticationContext.getQueryParams()).thenReturn(queryParams);
             when(mockHttpServletRequest.getParameter(BACKUP_CODE)).thenReturn(backupCode);
-            when(BackupCodeUtil.getAuthenticatedUser(any())).thenAnswer(arg -> {
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getAuthenticatedUser(any())).thenAnswer(arg -> {
                 if (authenticatedUserInContext) {
                     return mockAuthenticatedUser;
                 }
                 return null;
             });
-            when(BackupCodeUtil.getUserStoreManagerOfUser(anyString())).thenReturn(mockUserStoreManager);
-            when(BackupCodeUtil.getBackupCodeLoginPage(anyObject())).thenReturn(
-                    "https://localhost:9443/authenticationendpoint/backup_code.do");
-            when(BackupCodeUtil.getBackupCodeErrorPage(anyObject())).thenReturn(
-                    "https://localhost:9443/authenticationendpoint/backup_code_error.do");
-            when(mockUserStoreManager.getUserClaimValues(anyString(), anyObject(), anyString())).thenReturn(claims);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getUserStoreManagerOfUser(anyString()))
+                    .thenReturn(mockUserStoreManager);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getBackupCodeLoginPage(any()))
+                    .thenReturn(
+                            "https://localhost:9443/authenticationendpoint/backup_code.do");
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getBackupCodeErrorPage(any()))
+                    .thenReturn(
+                            "https://localhost:9443/authenticationendpoint/backup_code_error.do");
+            when(mockUserStoreManager.getUserClaimValues(anyString(), any(), anyString())).thenReturn(claims);
             when(mockAuthenticatedUser.isFederatedUser()).thenReturn(isFedUser);
             when(mockAuthenticatedUser.getUserName()).thenReturn(username);
             when(mockAuthenticatedUser.getFederatedIdPName()).thenReturn("LOCAL");
-            when(BackupCodeDataHolder.getIdpManager()).thenReturn(mockIdpManager);
+            backupCodeDataHolderMockedStatic.when(BackupCodeDataHolder::getIdpManager).thenReturn(mockIdpManager);
             when(mockIdpManager.getIdPByName(anyString(), anyString())).thenReturn(mockIdentityProvider);
             when(mockIdentityProvider.getJustInTimeProvisioningConfig()).thenReturn(mockJustInTimeProvisioningConfig);
             when(mockJustInTimeProvisioningConfig.isProvisioningEnabled()).thenReturn(isProvisioningEnabled);
-            when(FederatedAuthenticatorUtil.getLoggedInFederatedUser(any())).thenReturn(username);
-            when(IdentityCoreServiceComponent.getConfigurationContextService()).thenReturn(
-                    mockConfigurationContextService);
+            federatedAuthenticatorUtilMockedStatic.when(() -> FederatedAuthenticatorUtil
+                            .getLoggedInFederatedUser(any())).thenReturn(username);
+            identityCoreServiceComponentMockedStatic.when(IdentityCoreServiceComponent::getConfigurationContextService)
+                    .thenReturn(mockConfigurationContextService);
             when(mockConfigurationContextService.getServerConfigContext()).thenReturn(mockConfigurationContext);
             when(mockConfigurationContext.getAxisConfiguration()).thenReturn(mockAxisConfiguration);
-            when(CarbonUtils.getTransportProxyPort((AxisConfiguration) anyObject(), anyString())).thenReturn(9443);
-            when(FederatedAuthenticatorUtil.getLocalUsernameAssociatedWithFederatedUser(anyString(), any())).thenReturn(
-                    username);
-            when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+            carbonUtilsMockedStatic.when(() -> CarbonUtils.getTransportProxyPort(any(AxisConfiguration.class), 
+                            anyString())).thenReturn(9443);
+            federatedAuthenticatorUtilMockedStatic.when(
+                            () -> FederatedAuthenticatorUtil.getLocalUsernameAssociatedWithFederatedUser(anyString(), 
+                                    any())).thenReturn(username);
+            fileBasedConfigurationBuilderMockedStatic.when(FileBasedConfigurationBuilder::getInstance)
+                    .thenReturn(fileBasedConfigurationBuilder);
             when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
 
             AuthenticatorFlowStatus flowStatus =
@@ -456,35 +481,43 @@ public class BackupCodeAuthenticatorTest extends PowerMockTestCase {
                     failedAttempts, maxAttempts);
         }
 
-        mockStatic(FileBasedConfigurationBuilder.class);
-        mockStatic(BackupCodeUtil.class);
-        mockStatic(FederatedAuthenticatorUtil.class);
-        mockStatic(IdentityUtil.class);
-        when(BackupCodeUtil.getUserStoreManagerOfUser(anyString())).thenReturn(mockUserStoreManager);
-        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
-        when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig1);
-        when(mockAuthenticationContext.getLoginTenantDomain()).thenReturn(TENANT_DOMAIN);
-        when(mockAuthenticationContext.getQueryParams()).thenReturn(QUERY_PARAMS);
-        when(BackupCodeUtil.getAuthenticatedUser(any())).thenReturn(mockAuthenticatedUser);
-        when(mockAuthenticatedUser.getUserName()).thenReturn(username);
-        when(mockUserStoreManager.getUserClaimValues(anyString(), anyObject(), anyString())).thenReturn(claims);
-        when(IdentityUtil.getIdentityErrorMsg()).thenReturn(customErrorMessageContext);
-        when(mockAuthenticatedUser.isFederatedUser()).thenReturn(false);
-        when(BackupCodeUtil.getBackupCodeLoginPage(anyObject())).thenReturn(
-                "https://localhost:9443/authenticationendpoint/backup_code.do");
-        when(BackupCodeUtil.getBackupCodeErrorPage(anyObject())).thenReturn(
-                "https://localhost:9443/authenticationendpoint/backup_code_error.do");
-        doAnswer((Answer<Object>) invocation -> {
+        try (MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilderMockedStatic =
+                     Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<BackupCodeUtil> backupCodeUtilMockedStatic = Mockito.mockStatic(BackupCodeUtil.class);
+             MockedStatic<FederatedAuthenticatorUtil> federatedAuthenticatorUtilMockedStatic =
+                     Mockito.mockStatic(FederatedAuthenticatorUtil.class);
+             MockedStatic<IdentityUtil> identityUtilMockedStatic = Mockito.mockStatic(IdentityUtil.class)) {
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getUserStoreManagerOfUser(anyString()))
+                    .thenReturn(mockUserStoreManager);
+            fileBasedConfigurationBuilderMockedStatic.when(FileBasedConfigurationBuilder::getInstance)
+                    .thenReturn(fileBasedConfigurationBuilder);
+            when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig1);
+            when(mockAuthenticationContext.getLoginTenantDomain()).thenReturn(TENANT_DOMAIN);
+            when(mockAuthenticationContext.getQueryParams()).thenReturn(QUERY_PARAMS);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getAuthenticatedUser(any()))
+                    .thenReturn(mockAuthenticatedUser);
+            when(mockAuthenticatedUser.getUserName()).thenReturn(username);
+            when(mockUserStoreManager.getUserClaimValues(anyString(), any(String[].class), nullable(String.class)))
+                    .thenReturn(claims);
+            identityUtilMockedStatic.when(IdentityUtil::getIdentityErrorMsg).thenReturn(customErrorMessageContext);
+            when(mockAuthenticatedUser.isFederatedUser()).thenReturn(false);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getBackupCodeLoginPage(any()))
+                    .thenReturn("https://localhost:9443/authenticationendpoint/backup_code.do");
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getBackupCodeErrorPage(any()))
+                    .thenReturn("https://localhost:9443/authenticationendpoint/backup_code_error.do");
+            doAnswer((Answer<Object>) invocation -> {
+                redirect = (String) invocation.getArguments()[0];
+                return null;
+            }).when(mocHttpServletResponse).sendRedirect(anyString());
 
-            redirect = (String) invocation.getArguments()[0];
-            return null;
-        }).when(mocHttpServletResponse).sendRedirect(anyString());
+            backupCodeAuthenticator.initiateAuthenticationRequest(mockHttpServletRequest, mocHttpServletResponse,
+                    mockAuthenticationContext);
 
-        backupCodeAuthenticator.initiateAuthenticationRequest(mockHttpServletRequest, mocHttpServletResponse,
-                mockAuthenticationContext);
-
-        assertFalse(hasErrorCode ^ redirect.contains(errorCodeParam));
-        assertFalse(hasLockedReason ^ redirect.contains(lockedReasonParam));
+            boolean redirectContainsErrorCode = redirect.contains(errorCodeParam);
+            boolean redirectContainsLockedReason = redirect.contains(lockedReasonParam);
+            assertEquals(hasErrorCode, redirectContainsErrorCode);
+            assertEquals(hasLockedReason, redirectContainsLockedReason);
+        }
     }
 
     @DataProvider(name="initiateAuthenticationRequestWithErrorContextData")

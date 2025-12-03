@@ -18,8 +18,11 @@
 
 package org.wso2.carbon.identity.application.authenticator.backupcode.connector;
 
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.testng.PowerMockTestCase;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
@@ -32,16 +35,26 @@ import java.util.Map;
 import java.util.Properties;
 
 import static org.testng.AssertJUnit.assertEquals;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.AssertJUnit.assertNull;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.REQUIRED_NO_OF_BACKUP_CODES;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.LENGTH_OF_BACKUP_CODE;
 
-@PrepareForTest({BackupCodeAuthenticatorConfigImpl.class, IdentityUtil.class})
-public class BackupCodeAuthenticatorConfigImplTest extends PowerMockTestCase {
+public class BackupCodeAuthenticatorConfigImplTest {
 
     BackupCodeAuthenticatorConfigImpl backupCodeAuthenticatorConfig = new BackupCodeAuthenticatorConfigImpl();
+    private AutoCloseable openMocks;
+
+    @BeforeMethod
+    public void setUp() {
+        openMocks = MockitoAnnotations.openMocks(this);
+    }
+
+    @AfterMethod
+    public void tearDown() throws Exception {
+        if (openMocks != null) {
+            openMocks.close();
+        }
+    }
 
     @Test
     public void testGetName() {
@@ -111,13 +124,15 @@ public class BackupCodeAuthenticatorConfigImplTest extends PowerMockTestCase {
             throws IdentityGovernanceException {
 
 
-        mockStatic(IdentityUtil.class);
-        when(IdentityUtil.getProperty(LENGTH_OF_BACKUP_CODE)).thenReturn(backupCodeLength);
-        when(IdentityUtil.getProperty(REQUIRED_NO_OF_BACKUP_CODES)).thenReturn(backupCodeSize);
+        try (MockedStatic<IdentityUtil> identityUtilMockedStatic = Mockito.mockStatic(IdentityUtil.class)) {
+            identityUtilMockedStatic.when(() -> IdentityUtil.getProperty(LENGTH_OF_BACKUP_CODE)).thenReturn(
+                    backupCodeLength);
+            identityUtilMockedStatic.when(() -> IdentityUtil.getProperty(REQUIRED_NO_OF_BACKUP_CODES))
+                    .thenReturn(backupCodeSize);
 
-        Properties result = backupCodeAuthenticatorConfig.getDefaultPropertyValues("test");
-        assertEquals(properties, result);
-
+            Properties result = backupCodeAuthenticatorConfig.getDefaultPropertyValues("test");
+            assertEquals(properties, result);
+        }
     }
 
     @DataProvider(name = "defaultPropertyValuesData")

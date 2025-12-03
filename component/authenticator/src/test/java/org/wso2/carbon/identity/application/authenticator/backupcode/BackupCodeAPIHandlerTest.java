@@ -19,8 +19,11 @@
 package org.wso2.carbon.identity.application.authenticator.backupcode;
 
 import org.mockito.Mock;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.testng.PowerMockTestCase;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.wso2.carbon.identity.application.authenticator.backupcode.exception.BackupCodeClientException;
@@ -36,36 +39,53 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.powermock.api.mockito.PowerMockito.*;
+import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.Claims.BACKUP_CODES_CLAIM;
 import static org.wso2.carbon.identity.application.authenticator.backupcode.constants.BackupCodeAuthenticatorConstants.Claims.BACKUP_CODES_ENABLED_CLAIM;
 
-@PrepareForTest({BackupCodeAPIHandler.class, BackupCodeUtil.class, MultitenantUtils.class})
-public class BackupCodeAPIHandlerTest extends PowerMockTestCase {
+public class BackupCodeAPIHandlerTest {
 
     private final String username = "test1";
     private final String tenantAwareUserName = "test1";
 
+    private AutoCloseable openMocks;
+
     @Mock
     UserStoreManager userStoreManager;
+
+    @BeforeMethod
+    public void setUp() {
+        openMocks = MockitoAnnotations.openMocks(this);
+    }
+
+    @AfterMethod
+    public void tearDown() throws Exception {
+        if (openMocks != null) {
+            openMocks.close();
+        }
+    }
 
     @Test(dataProvider = "backupCodesCountData")
     public void testGetRemainingBackupCodesCount(Map<String, String> userClaimValues, String username,
                                                  int remainingBackupCodesCount)
             throws UserStoreException, BackupCodeException {
 
-        mockStatic(BackupCodeUtil.class);
-        mockStatic(MultitenantUtils.class);
-        when(MultitenantUtils.getTenantAwareUsername(username)).thenReturn(tenantAwareUserName);
-        when(BackupCodeUtil.getUserStoreManagerOfUser(username)).thenReturn(userStoreManager);
-        when(userStoreManager.getUserClaimValues(tenantAwareUserName, new String[]{BACKUP_CODES_CLAIM},
-                null)).thenReturn(userClaimValues);
-        if (username.equals("test1")) {
-            assertEquals(remainingBackupCodesCount, BackupCodeAPIHandler.getRemainingBackupCodesCount(username));
-        } else {
-            assertEquals(0, BackupCodeAPIHandler.getRemainingBackupCodesCount("test2"));
+        try (MockedStatic<BackupCodeUtil> backupCodeUtilMockedStatic = Mockito.mockStatic(BackupCodeUtil.class);
+             MockedStatic<MultitenantUtils> multitenantUtilsMockedStatic = Mockito.mockStatic(MultitenantUtils.class)) {
+
+            multitenantUtilsMockedStatic.when(() -> MultitenantUtils.getTenantAwareUsername(username))
+                    .thenReturn(tenantAwareUserName);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getUserStoreManagerOfUser(username))
+                    .thenReturn(userStoreManager);
+            when(userStoreManager.getUserClaimValues(tenantAwareUserName, new String[]{BACKUP_CODES_CLAIM},
+                    null)).thenReturn(userClaimValues);
+            if (username.equals("test1")) {
+                assertEquals(remainingBackupCodesCount, BackupCodeAPIHandler.getRemainingBackupCodesCount(username));
+            } else {
+                assertEquals(0, BackupCodeAPIHandler.getRemainingBackupCodesCount("test2"));
+            }
         }
     }
 
@@ -102,14 +122,21 @@ public class BackupCodeAPIHandlerTest extends PowerMockTestCase {
     @Test(dataProvider = "generateBackupCodesData")
     public void testGenerateBackupCodes(List<String> backupCodes) throws BackupCodeException {
 
-        mockStatic(BackupCodeUtil.class);
-        mockStatic(MultitenantUtils.class);
         String tenantDomain = "test.domain";
-        when(MultitenantUtils.getTenantDomain(username)).thenReturn(tenantDomain);
-        when(MultitenantUtils.getTenantAwareUsername(username)).thenReturn(username);
-        when(BackupCodeUtil.getUserStoreManagerOfUser(username)).thenReturn(userStoreManager);
-        when(BackupCodeUtil.generateBackupCodes(tenantDomain)).thenReturn(backupCodes);
-        assertEquals(backupCodes, BackupCodeAPIHandler.generateBackupCodes(username));
+        try (MockedStatic<BackupCodeUtil> backupCodeUtilMockedStatic = Mockito.mockStatic(BackupCodeUtil.class);
+             MockedStatic<MultitenantUtils> multitenantUtilsMockedStatic = Mockito.mockStatic(MultitenantUtils.class)) {
+
+            multitenantUtilsMockedStatic.when(() -> MultitenantUtils.getTenantDomain(username))
+                    .thenReturn(tenantDomain);
+            multitenantUtilsMockedStatic.when(() -> MultitenantUtils.getTenantAwareUsername(username))
+                    .thenReturn(username);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getUserStoreManagerOfUser(username))
+                    .thenReturn(userStoreManager);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.generateBackupCodes(tenantDomain))
+                    .thenReturn(backupCodes);
+
+            assertEquals(backupCodes, BackupCodeAPIHandler.generateBackupCodes(username));
+        }
     }
 
     @Test(expectedExceptions = BackupCodeClientException.class)
@@ -139,11 +166,15 @@ public class BackupCodeAPIHandlerTest extends PowerMockTestCase {
     @Test
     public void testDeleteBackupCodes() throws BackupCodeException {
 
-        mockStatic(BackupCodeUtil.class);
-        mockStatic(MultitenantUtils.class);
-        when(MultitenantUtils.getTenantAwareUsername(username)).thenReturn(tenantAwareUserName);
-        when(BackupCodeUtil.getUserStoreManagerOfUser(username)).thenReturn(userStoreManager);
-        assertTrue(BackupCodeAPIHandler.deleteBackupCodes(username));
+        try (MockedStatic<BackupCodeUtil> backupCodeUtilMockedStatic = Mockito.mockStatic(BackupCodeUtil.class);
+             MockedStatic<MultitenantUtils> multitenantUtilsMockedStatic = Mockito.mockStatic(MultitenantUtils.class)) {
+
+            multitenantUtilsMockedStatic.when(() -> MultitenantUtils.getTenantAwareUsername(username))
+                    .thenReturn(tenantAwareUserName);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getUserStoreManagerOfUser(username))
+                    .thenReturn(userStoreManager);
+            assertTrue(BackupCodeAPIHandler.deleteBackupCodes(username));
+        }
     }
 
     @Test(expectedExceptions = BackupCodeClientException.class)
