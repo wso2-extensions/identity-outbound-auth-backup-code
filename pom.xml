@@ -350,7 +350,7 @@
         <carbon.identity.event.version.range>[5.13.0, 6.0.0)</carbon.identity.event.version.range>
         <!--Test Dependencies-->
         <testng.version>6.9.10</testng.version>
-        <jacoco.version>0.7.9</jacoco.version>
+        <jacoco.version>0.8.12</jacoco.version>
         <mockito.version>5.3.1</mockito.version>
         <slf4j.api.version>1.7.12</slf4j.api.version>
         <maven.surefire.plugin.version>2.18.1</maven.surefire.plugin.version>
@@ -380,7 +380,7 @@
                 <plugin>
                     <groupId>org.apache.felix</groupId>
                     <artifactId>maven-bundle-plugin</artifactId>
-                    <version>3.2.0</version>
+                    <version>5.1.9</version>
                     <extensions>true</extensions>
                     <configuration>
                         <obrRepository>NONE</obrRepository>
@@ -411,8 +411,8 @@
                 <inherited>true</inherited>
                 <configuration>
                     <encoding>UTF-8</encoding>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>21</source>
+                    <target>21</target>
                 </configuration>
             </plugin>
         </plugins>
