@@ -67,12 +67,18 @@ public class BackupCodeAuthenticatorConstants {
 
             public static final String PROCESS_AUTHENTICATION_RESPONSE = "process-backupcode-authentication-response";
             public static final String INITIATE_BACKUP_CODE_REQUEST = "initiate-backupcode-authentication-request";
+            public static final String GET_REMAINING_BACKUP_CODES_COUNT = "get-remaining-backup-codes-count";
+            public static final String GENERATE_BACKUP_CODES = "generate-backup-codes";
+            public static final String DELETE_BACKUP_CODES = "delete-backup-codes";
         }
     }
 
     public enum ErrorMessages {
 
         ERROR_NO_USERNAME("60001", "Username cannot be empty"),
+        ERROR_NO_USER_ID("60002", "User ID cannot be empty"),
+        ERROR_BACKUP_CODE_UPDATE_FAILURE("60003", "Error occurred while updating backup code claim values for user: " +
+                "%s"),
         INVALID_FEDERATED_AUTHENTICATOR("65001", "No IDP found with the name IDP: " + "%s in tenant: %s"),
         ERROR_NO_FEDERATED_USER("65002", "No federated user found"),
         INVALID_FEDERATED_USER_AUTHENTICATION("65003", "Can not handle federated user " +
@@ -88,7 +94,8 @@ public class BackupCodeAuthenticatorConstants {
         ERROR_GETTING_CONFIG("65011", "Error occurred while getting backup code configurations"),
         ERROR_GETTING_THE_USER_REALM("65012", "Error occurred while getting the user realm"),
         ERROR_GETTING_THE_USER_STORE_MANAGER("65013", "Error occurred while getting the user store manager"),
-        ERROR_SETTING_USER_CLAIM_VALUES("65014", "Error occurred while setting user claim values");
+        ERROR_SETTING_USER_CLAIM_VALUES("65014", "Error occurred while setting user claim values"),
+        ERROR_UNSUPPORTED_USER_STORE("65015", "Userstore does not support unique ids"),;
 
         private final String code;
         private final String message;
@@ -126,5 +133,7 @@ public class BackupCodeAuthenticatorConstants {
         public static final String BACKUP_CODE_FAILED_ATTEMPTS_CLAIM =
                 "http://wso2.org/claims/identity/failedBackupCodeAttempts";
         public static final String ACCOUNT_LOCKED_REASON_CLAIM = "http://wso2.org/claims/identity/lockedReason";
+        public static final String ENABLED_AUTHENTICATORS_CLAIM =
+                "http://wso2.org/claims/identity/enabledAuthenticators";
     }
 }

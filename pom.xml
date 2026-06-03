@@ -148,7 +148,7 @@
         <carbon.commons.version>4.4.8</carbon.commons.version>
         <carbon.commons.imp.pkg.version>[4.4.0, 5.0.0)</carbon.commons.imp.pkg.version>
         <!--Carbon identity version-->
-        <carbon.identity.framework.version>5.25.522</carbon.identity.framework.version>
+        <carbon.identity.framework.version>7.10.151</carbon.identity.framework.version>
 
         <org.wso2.carbon.identity.organization.management.core.version>1.0.0
         </org.wso2.carbon.identity.organization.management.core.version>
