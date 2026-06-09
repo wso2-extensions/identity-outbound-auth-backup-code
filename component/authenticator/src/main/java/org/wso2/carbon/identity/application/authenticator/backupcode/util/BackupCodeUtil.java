@@ -17,6 +17,7 @@
  */
 package org.wso2.carbon.identity.application.authenticator.backupcode.util;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import org.apache.commons.lang.math.NumberUtils;
 import org.wso2.carbon.identity.application.authenticator.backupcode.exception.BackupCodeException;
 import org.wso2.carbon.identity.application.authenticator.backupcode.internal.BackupCodeDataHolder;
@@ -43,6 +44,7 @@ import org.wso2.carbon.identity.handler.event.account.lock.exception.AccountLock
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.api.UserStoreManager;
+import org.wso2.carbon.user.core.UniqueIDUserStoreManager;
 import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.service.RealmService;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
@@ -169,6 +171,40 @@ public class BackupCodeUtil {
                 return userStoreManager;
             }
             return ((AbstractUserStoreManager) userStoreManager).getSecondaryUserStoreManager(userStoreDomain);
+        } catch (UserStoreException e) {
+            throw new BackupCodeException(ERROR_GETTING_THE_USER_STORE_MANAGER.getCode(),
+                    ERROR_GETTING_THE_USER_STORE_MANAGER.getMessage(), e);
+        }
+    }
+
+    /**
+     * Get the primary {@link AbstractUserStoreManager} for the given tenant domain.
+     *
+     * @param tenantDomain Tenant domain.
+     * @return Primary AbstractUserStoreManager of the tenant.
+     * @throws BackupCodeException If the realm or user store manager cannot be resolved.
+     */
+    public static UniqueIDUserStoreManager getUserStoreManagerOfTenant(String tenantDomain)
+            throws BackupCodeException {
+
+        if (StringUtils.isBlank(tenantDomain)) {
+            throw new BackupCodeException(ERROR_GETTING_THE_USER_REALM.getCode(),
+                    ERROR_GETTING_THE_USER_REALM.getMessage());
+        }
+        try {
+            int tenantId = IdentityTenantUtil.getTenantId(tenantDomain);
+            RealmService realmService = getRealmService();
+            UserRealm userRealm = realmService.getTenantUserRealm(tenantId);
+            if (userRealm == null) {
+                throw new BackupCodeException(ERROR_GETTING_THE_USER_REALM.getCode(),
+                        ERROR_GETTING_THE_USER_REALM.getMessage());
+            }
+            UserStoreManager userStoreManager = userRealm.getUserStoreManager();
+            if (!(userStoreManager instanceof UniqueIDUserStoreManager)) {
+                throw new BackupCodeException(ERROR_UNSUPPORTED_USER_STORE.getCode(),
+                        ERROR_UNSUPPORTED_USER_STORE.getMessage());
+            }
+            return (UniqueIDUserStoreManager) userStoreManager;
         } catch (UserStoreException e) {
             throw new BackupCodeException(ERROR_GETTING_THE_USER_STORE_MANAGER.getCode(),
                     ERROR_GETTING_THE_USER_STORE_MANAGER.getMessage(), e);

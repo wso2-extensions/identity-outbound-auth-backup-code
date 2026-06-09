@@ -26,12 +26,16 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import org.wso2.carbon.context.CarbonContext;
+import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.application.authenticator.backupcode.exception.BackupCodeClientException;
 import org.wso2.carbon.identity.application.authenticator.backupcode.exception.BackupCodeException;
 import org.wso2.carbon.identity.application.authenticator.backupcode.util.BackupCodeUtil;
+import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
+import org.wso2.carbon.identity.core.util.IdentityUtil;
 
 import org.wso2.carbon.user.api.UserStoreException;
-import org.wso2.carbon.user.api.UserStoreManager;
+import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.util.ArrayList;
@@ -49,21 +53,51 @@ public class BackupCodeAPIHandlerTest {
 
     private final String username = "test1";
     private final String tenantAwareUserName = "test1";
+    private final String userID = "user-id-1";
+    private final String tenantDomain = "carbon.super";
 
     private AutoCloseable openMocks;
+    private MockedStatic<LoggerUtils> loggerUtilsMockedStatic;
+    private MockedStatic<CarbonContext> carbonContextMockedStatic;
+    private MockedStatic<IdentityUtil> identityUtilMockedStatic;
 
     @Mock
-    UserStoreManager userStoreManager;
+    AbstractUserStoreManager userStoreManager;
 
     @BeforeMethod
     public void setUp() {
+        System.setProperty("carbon.home", ".");
         openMocks = MockitoAnnotations.openMocks(this);
+
+        loggerUtilsMockedStatic = Mockito.mockStatic(LoggerUtils.class);
+        loggerUtilsMockedStatic.when(() -> LoggerUtils.getInitiatorType(Mockito.anyString())).thenReturn("User");
+        loggerUtilsMockedStatic.when(() -> LoggerUtils.triggerAuditLogEvent(Mockito.any()))
+                .thenAnswer(invocation -> null);
+
+        CarbonContext carbonContextMock = Mockito.mock(CarbonContext.class);
+        Mockito.when(carbonContextMock.getUsername()).thenReturn("");
+        Mockito.when(carbonContextMock.getTenantDomain()).thenReturn("carbon.super");
+        carbonContextMockedStatic = Mockito.mockStatic(CarbonContext.class);
+        carbonContextMockedStatic.when(CarbonContext::getThreadLocalCarbonContext).thenReturn(carbonContextMock);
+
+        identityUtilMockedStatic = Mockito.mockStatic(IdentityUtil.class);
+        identityUtilMockedStatic.when(() -> IdentityUtil.getInitiatorId(Mockito.anyString(), Mockito.anyString()))
+                .thenReturn(null);
     }
 
     @AfterMethod
     public void tearDown() throws Exception {
         if (openMocks != null) {
             openMocks.close();
+        }
+        if (loggerUtilsMockedStatic != null) {
+            loggerUtilsMockedStatic.close();
+        }
+        if (carbonContextMockedStatic != null) {
+            carbonContextMockedStatic.close();
+        }
+        if (identityUtilMockedStatic != null) {
+            identityUtilMockedStatic.close();
         }
     }
 
@@ -120,7 +154,7 @@ public class BackupCodeAPIHandlerTest {
     }
 
     @Test(dataProvider = "generateBackupCodesData")
-    public void testGenerateBackupCodes(List<String> backupCodes) throws BackupCodeException {
+    public void testGenerateBackupCodes(List<String> backupCodes) throws BackupCodeException, UserStoreException {
 
         String tenantDomain = "test.domain";
         try (MockedStatic<BackupCodeUtil> backupCodeUtilMockedStatic = Mockito.mockStatic(BackupCodeUtil.class);
@@ -134,6 +168,7 @@ public class BackupCodeAPIHandlerTest {
                     .thenReturn(userStoreManager);
             backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.generateBackupCodes(tenantDomain))
                     .thenReturn(backupCodes);
+            when(userStoreManager.getUserIDFromUserName(username)).thenReturn(userID);
 
             assertEquals(backupCodes, BackupCodeAPIHandler.generateBackupCodes(username));
         }
@@ -164,7 +199,7 @@ public class BackupCodeAPIHandlerTest {
     }
 
     @Test
-    public void testDeleteBackupCodes() throws BackupCodeException {
+    public void testDeleteBackupCodes() throws BackupCodeException, UserStoreException {
 
         try (MockedStatic<BackupCodeUtil> backupCodeUtilMockedStatic = Mockito.mockStatic(BackupCodeUtil.class);
              MockedStatic<MultitenantUtils> multitenantUtilsMockedStatic = Mockito.mockStatic(MultitenantUtils.class)) {
@@ -173,6 +208,7 @@ public class BackupCodeAPIHandlerTest {
                     .thenReturn(tenantAwareUserName);
             backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getUserStoreManagerOfUser(username))
                     .thenReturn(userStoreManager);
+            when(userStoreManager.getUserIDFromUserName(tenantAwareUserName)).thenReturn(userID);
             assertTrue(BackupCodeAPIHandler.deleteBackupCodes(username));
         }
     }
@@ -183,4 +219,74 @@ public class BackupCodeAPIHandlerTest {
         BackupCodeAPIHandler.deleteBackupCodes("");
         BackupCodeAPIHandler.deleteBackupCodes(null);
     }
+
+    @Test(dataProvider = "backupCodesCountData")
+    public void testGetRemainingBackupCodesCountByUserId(Map<String, String> userClaimValues, String username,
+                                                        int remainingBackupCodesCount)
+            throws UserStoreException, BackupCodeException {
+
+        try (MockedStatic<BackupCodeUtil> backupCodeUtilMockedStatic = Mockito.mockStatic(BackupCodeUtil.class);
+             MockedStatic<IdentityTenantUtil> identityTenantUtilMockedStatic =
+                     Mockito.mockStatic(IdentityTenantUtil.class)) {
+
+            identityTenantUtilMockedStatic.when(IdentityTenantUtil::resolveTenantDomain).thenReturn(tenantDomain);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getUserStoreManagerOfTenant(tenantDomain))
+                    .thenReturn(userStoreManager);
+            when(userStoreManager.getUserClaimValuesWithID(userID, new String[]{BACKUP_CODES_CLAIM}, null))
+                    .thenReturn(userClaimValues);
+            assertEquals(remainingBackupCodesCount,
+                    BackupCodeAPIHandler.getRemainingBackupCodesCountByUserId(userID));
+        }
+    }
+
+    @Test(expectedExceptions = BackupCodeClientException.class)
+    public void testGetRemainingBackupCodesCountByUserIdBlankUserId() throws BackupCodeException {
+
+        BackupCodeAPIHandler.getRemainingBackupCodesCountByUserId("");
+    }
+
+    @Test(dataProvider = "generateBackupCodesData")
+    public void testGenerateBackupCodesByUserId(List<String> backupCodes)
+            throws BackupCodeException, UserStoreException {
+
+        try (MockedStatic<BackupCodeUtil> backupCodeUtilMockedStatic = Mockito.mockStatic(BackupCodeUtil.class);
+             MockedStatic<IdentityTenantUtil> identityTenantUtilMockedStatic =
+                     Mockito.mockStatic(IdentityTenantUtil.class)) {
+
+            identityTenantUtilMockedStatic.when(IdentityTenantUtil::resolveTenantDomain).thenReturn(tenantDomain);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getUserStoreManagerOfTenant(tenantDomain))
+                    .thenReturn(userStoreManager);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.generateBackupCodes(tenantDomain))
+                    .thenReturn(backupCodes);
+
+            assertEquals(backupCodes, BackupCodeAPIHandler.generateBackupCodesByUserId(userID));
+        }
+    }
+
+    @Test(expectedExceptions = BackupCodeClientException.class)
+    public void testGenerateBackupCodesByUserIdBlankUserId() throws BackupCodeException {
+
+        BackupCodeAPIHandler.generateBackupCodesByUserId("");
+    }
+
+    @Test
+    public void testDeleteBackupCodesByUserId() throws BackupCodeException {
+
+        try (MockedStatic<BackupCodeUtil> backupCodeUtilMockedStatic = Mockito.mockStatic(BackupCodeUtil.class);
+             MockedStatic<IdentityTenantUtil> identityTenantUtilMockedStatic =
+                     Mockito.mockStatic(IdentityTenantUtil.class)) {
+
+            identityTenantUtilMockedStatic.when(IdentityTenantUtil::resolveTenantDomain).thenReturn(tenantDomain);
+            backupCodeUtilMockedStatic.when(() -> BackupCodeUtil.getUserStoreManagerOfTenant(tenantDomain))
+                    .thenReturn(userStoreManager);
+            assertTrue(BackupCodeAPIHandler.deleteBackupCodesByUserId(userID));
+        }
+    }
+
+    @Test(expectedExceptions = BackupCodeClientException.class)
+    public void testDeleteBackupCodesByUserIdBlankUserId() throws BackupCodeException {
+
+        BackupCodeAPIHandler.deleteBackupCodesByUserId("");
+    }
+
 }
